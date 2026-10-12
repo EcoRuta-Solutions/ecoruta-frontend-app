@@ -6,6 +6,7 @@ import '../../features/auth/presentation/auth_controller.dart';
 import '../../features/auth/presentation/pantalla_login.dart';
 import '../../features/ciudadano/pantalla_inicio_ciudadano.dart';
 import '../../features/conductor/pantalla_inicio_conductor.dart';
+import '../../features/conductor/presentation/pantalla_detalle_ruta.dart';
 import '../../features/municipalidad/pantalla_inicio_municipalidad.dart';
 
 /// Dice a qué pantalla va cada rol al iniciar sesión.
@@ -23,7 +24,7 @@ String rutaInicioPorRol(String rol) {
 final routerProvider = Provider<GoRouter>((ref) {
   // Avisa al router cada vez que cambia el estado de la sesión.
   final cambioSesion = ValueNotifier<int>(0);
-  ref.listen(authProvider, (_, __) => cambioSesion.value++);
+  ref.listen(authProvider, (_, _) => cambioSesion.value++);
   ref.onDispose(cambioSesion.dispose);
 
   return GoRouter(
@@ -50,23 +51,31 @@ final routerProvider = Provider<GoRouter>((ref) {
     routes: [
       GoRoute(
         path: '/splash',
-        builder: (_, __) => const _PantallaCarga(),
+        builder: (_, _) => const _PantallaCarga(),
       ),
       GoRoute(
         path: '/login',
-        builder: (_, __) => const PantallaLogin(),
+        builder: (_, _) => const PantallaLogin(),
       ),
       GoRoute(
         path: '/ciudadano',
-        builder: (_, __) => const PantallaInicioCiudadano(),
+        builder: (_, _) => const PantallaInicioCiudadano(),
       ),
       GoRoute(
         path: '/municipalidad',
-        builder: (_, __) => const PantallaInicioMunicipalidad(),
+        builder: (_, _) => const PantallaInicioMunicipalidad(),
       ),
       GoRoute(
         path: '/conductor',
-        builder: (_, __) => const PantallaInicioConductor(),
+        builder: (_, _) => const PantallaInicioConductor(),
+        routes: [
+          GoRoute(
+            path: 'ruta/:id',
+            builder: (_, state) => PantallaDetalleRuta(
+              idRuta: int.parse(state.pathParameters['id']!),
+            ),
+          ),
+        ],
       ),
     ],
   );
