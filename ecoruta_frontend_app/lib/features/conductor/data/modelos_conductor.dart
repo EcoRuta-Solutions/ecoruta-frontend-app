@@ -52,7 +52,6 @@ class NodoConductor {
   final double latitud;
   final double longitud;
   final int umbralCritico;
-  // El backend aún no envía estos campos en las paradas.
   final double? llenado;
   final String? prioridad;
 
