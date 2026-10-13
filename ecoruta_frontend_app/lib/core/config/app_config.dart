@@ -1,6 +1,9 @@
 import 'package:flutter/foundation.dart';
 
 class AppConfig {
+  static const bool usarDatosDeEjemplo =
+      bool.fromEnvironment('USE_MOCK', defaultValue: true);
+
   // Para un celular real: flutter run --dart-define=API_URL=http://TU_IP:8000
   static const String _override = String.fromEnvironment('API_URL');
 

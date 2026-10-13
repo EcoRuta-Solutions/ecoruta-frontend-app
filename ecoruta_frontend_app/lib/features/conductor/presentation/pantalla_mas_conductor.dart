@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../auth/presentation/auth_controller.dart';
 import '../data/modelos_conductor.dart';
+import 'accesibilidad_conductor.dart';
 import 'mis_rutas_controller.dart';
 
 class PantallaMasConductor extends ConsumerWidget {
@@ -12,7 +13,8 @@ class PantallaMasConductor extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final usuario = ref.watch(authProvider).user;
-    final rutas = ref.watch(misRutasControllerProvider).asData?.value ?? const [];
+    final rutas =
+        ref.watch(misRutasControllerProvider).asData?.value ?? const [];
 
     return ListView(
       padding: const EdgeInsets.all(16),
@@ -110,10 +112,14 @@ class PantallaMasConductor extends ConsumerWidget {
             ),
           ),
         const SizedBox(height: 24),
-        OutlinedButton.icon(
-          onPressed: () => ref.read(authProvider.notifier).logout(),
-          icon: const Icon(Icons.logout_rounded),
-          label: const Text('Cerrar sesión'),
+        semanticaBotonConductor(
+          etiqueta: 'Cerrar sesión',
+          child: OutlinedButton.icon(
+            style: estiloBotonConductor,
+            onPressed: () => ref.read(authProvider.notifier).logout(),
+            icon: const Icon(Icons.logout_rounded),
+            label: const Text('Cerrar sesión'),
+          ),
         ),
       ],
     );

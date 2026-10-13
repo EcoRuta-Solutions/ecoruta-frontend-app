@@ -5,6 +5,8 @@ import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../auth/presentation/auth_controller.dart';
 import '../data/modelos_conductor.dart';
+import 'accesibilidad_conductor.dart';
+import 'error_conductor.dart';
 import 'mis_rutas_controller.dart';
 
 const _maximoAnchoConductor = 920.0;
@@ -22,16 +24,23 @@ class PantallaMiRuta extends ConsumerWidget {
       onRefresh: () => ref.read(misRutasControllerProvider.notifier).recargar(),
       child: rutas.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (_, _) => _Mensaje(
-          icono: Icons.cloud_off_rounded,
-          titulo: 'No se pudieron cargar tus rutas',
-          accion: FilledButton.icon(
-            onPressed: () =>
-                ref.read(misRutasControllerProvider.notifier).recargar(),
-            icon: const Icon(Icons.refresh_rounded),
-            label: const Text('Reintentar'),
-          ),
-        ),
+        error: (error, _) {
+          registrarErrorCargaConductor(error);
+          return _Mensaje(
+            icono: Icons.cloud_off_rounded,
+            titulo: mensajeErrorCargaConductor(error),
+            accion: semanticaBotonConductor(
+              etiqueta: 'Reintentar carga de rutas',
+              child: FilledButton.icon(
+                style: estiloBotonConductor,
+                onPressed: () =>
+                    ref.read(misRutasControllerProvider.notifier).recargar(),
+                icon: const Icon(Icons.refresh_rounded),
+                label: const Text('Reintentar'),
+              ),
+            ),
+          );
+        },
         data: (lista) {
           if (lista.isEmpty) {
             return const _Mensaje(
@@ -133,8 +142,10 @@ class _Encabezado extends StatelessWidget {
         alignment: Alignment.centerLeft,
         child: Text(
           texto,
-          style: Theme.of(context).textTheme.titleMedium
-              ?.copyWith(color: EcoColors.primario, fontWeight: FontWeight.w700),
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+            color: EcoColors.primario,
+            fontWeight: FontWeight.w700,
+          ),
         ),
       ),
     ),
@@ -148,9 +159,9 @@ class _TarjetaActiva extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final visual = Theme.of(
-      context,
-    ).extension<ColoresProceso>()!.para(_estadoProcesoConductor(ruta.estado));
+    final visual = Theme.of(context)
+        .extension<ColoresProceso>()!
+        .para(_estadoProcesoConductor(ruta.estado));
     final siguiente = ruta.paradas.where((p) => !p.recolectado).firstOrNull;
 
     Future<void> cambiar(EstadoRutaConductor estado, String mensaje) async {
@@ -253,34 +264,46 @@ class _TarjetaActiva extends ConsumerWidget {
                     children: [
                       if (ruta.estado == EstadoRutaConductor.pendiente)
                         Expanded(
-                          child: FilledButton.icon(
-                            onPressed: () => cambiar(
-                              EstadoRutaConductor.enProceso,
-                              'Ruta iniciada.',
+                          child: semanticaBotonConductor(
+                            etiqueta: 'Iniciar ruta',
+                            child: FilledButton.icon(
+                              style: estiloBotonConductor,
+                              onPressed: () => cambiar(
+                                EstadoRutaConductor.enProceso,
+                                'Ruta iniciada.',
+                              ),
+                              icon: const Icon(Icons.play_arrow_rounded),
+                              label: const Text('Iniciar ruta'),
                             ),
-                            icon: const Icon(Icons.play_arrow_rounded),
-                            label: const Text('Iniciar ruta'),
                           ),
                         ),
                       if (ruta.estado == EstadoRutaConductor.enProceso)
                         Expanded(
-                          child: FilledButton.icon(
-                            onPressed: () => cambiar(
-                              EstadoRutaConductor.completado,
-                              'Ruta completada.',
+                          child: semanticaBotonConductor(
+                            etiqueta: 'Completar ruta',
+                            child: FilledButton.icon(
+                              style: estiloBotonConductor,
+                              onPressed: () => cambiar(
+                                EstadoRutaConductor.completado,
+                                'Ruta completada.',
+                              ),
+                              icon: const Icon(Icons.check_rounded),
+                              label: const Text('Completar ruta'),
                             ),
-                            icon: const Icon(Icons.check_rounded),
-                            label: const Text('Completar ruta'),
                           ),
                         ),
                       if (ruta.estado == EstadoRutaConductor.completado ||
                           ruta.estado == EstadoRutaConductor.cancelado)
                         Expanded(
-                          child: OutlinedButton.icon(
-                            onPressed: () =>
-                                context.push('/conductor/ruta/${ruta.id}'),
-                            icon: const Icon(Icons.visibility_rounded),
-                            label: const Text('Ver detalle'),
+                          child: semanticaBotonConductor(
+                            etiqueta: 'Ver detalle de ruta',
+                            child: OutlinedButton.icon(
+                              style: estiloBotonConductor,
+                              onPressed: () =>
+                                  context.push('/conductor/ruta/${ruta.id}'),
+                              icon: const Icon(Icons.visibility_rounded),
+                              label: const Text('Ver detalle'),
+                            ),
                           ),
                         ),
                     ],
@@ -320,8 +343,10 @@ class _AnilloProgreso extends StatelessWidget {
         ),
         Text(
           '${(ruta.progreso * 100).round()}%',
-          style: Theme.of(context).textTheme.titleMedium
-              ?.copyWith(color: EcoColors.primario, fontWeight: FontWeight.w700),
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+            color: EcoColors.primario,
+            fontWeight: FontWeight.w700,
+          ),
         ),
       ],
     ),
@@ -335,9 +360,9 @@ class _TarjetaRuta extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final visual = Theme.of(
-      context,
-    ).extension<ColoresProceso>()!.para(_estadoProcesoConductor(ruta.estado));
+    final visual = Theme.of(context)
+        .extension<ColoresProceso>()!
+        .para(_estadoProcesoConductor(ruta.estado));
 
     return Center(
       child: ConstrainedBox(
@@ -434,9 +459,9 @@ class _ChipEstado extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final visual = Theme.of(
-      context,
-    ).extension<ColoresProceso>()!.para(_estadoProcesoConductor(estado));
+    final visual = Theme.of(context)
+        .extension<ColoresProceso>()!
+        .para(_estadoProcesoConductor(estado));
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),

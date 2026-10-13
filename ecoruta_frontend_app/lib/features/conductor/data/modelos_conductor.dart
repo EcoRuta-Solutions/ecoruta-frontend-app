@@ -52,6 +52,9 @@ class NodoConductor {
   final double latitud;
   final double longitud;
   final int umbralCritico;
+  // El backend aún no envía estos campos en las paradas.
+  final double? llenado;
+  final String? prioridad;
 
   const NodoConductor({
     required this.id,
@@ -60,6 +63,8 @@ class NodoConductor {
     required this.latitud,
     required this.longitud,
     required this.umbralCritico,
+    this.llenado,
+    this.prioridad,
   });
 
   factory NodoConductor.fromJson(Map<String, dynamic> j) => NodoConductor(
@@ -69,6 +74,8 @@ class NodoConductor {
     latitud: (j['latitud'] as num).toDouble(),
     longitud: (j['longitud'] as num).toDouble(),
     umbralCritico: (j['umbral_critico'] as num).toInt(),
+    llenado: (j['llenado'] as num?)?.toDouble(),
+    prioridad: j['prioridad'] as String?,
   );
 }
 
@@ -79,6 +86,8 @@ class ParadaConductor {
   final int nodoId;
   final int orden;
   final bool recolectado;
+  // El backend aún no envía la hora estimada en las paradas.
+  final DateTime? horaEstimada;
   final NodoConductor? nodo;
 
   const ParadaConductor({
@@ -87,11 +96,13 @@ class ParadaConductor {
     required this.nodoId,
     required this.orden,
     required this.recolectado,
+    this.horaEstimada,
     this.nodo,
   });
 
-  String get titulo =>
-      nodo == null ? 'Contenedor #$nodoId' : '${nodo!.nombre} (${nodo!.codigo})';
+  String get titulo => nodo == null
+      ? 'Contenedor #$nodoId'
+      : '${nodo!.nombre} (${nodo!.codigo})';
 
   factory ParadaConductor.fromJson(Map<String, dynamic> j) => ParadaConductor(
     id: j['id'] as int,
@@ -99,6 +110,9 @@ class ParadaConductor {
     nodoId: j['nodo_id'] as int,
     orden: j['orden'] as int,
     recolectado: j['recolectado'] as bool? ?? false,
+    horaEstimada: j['hora_estimada'] == null
+        ? null
+        : DateTime.parse(j['hora_estimada'] as String).toLocal(),
     nodo: j['nodo'] == null
         ? null
         : NodoConductor.fromJson(j['nodo'] as Map<String, dynamic>),
@@ -110,6 +124,7 @@ class ParadaConductor {
     nodoId: nodoId,
     orden: orden,
     recolectado: recolectado ?? this.recolectado,
+    horaEstimada: horaEstimada,
     nodo: nodo,
   );
 }
@@ -144,14 +159,14 @@ class RutaConductor {
 
   int get paradasHechas => paradas.where((p) => p.recolectado).length;
 
-  double get progreso =>
-      paradasTotal == 0 ? 0 : paradasHechas / paradasTotal;
+  double get progreso => paradasTotal == 0 ? 0 : paradasHechas / paradasTotal;
 
   factory RutaConductor.fromJson(Map<String, dynamic> j) {
-    final paradas = (j['paradas'] as List? ?? const [])
-        .map((e) => ParadaConductor.fromJson(e as Map<String, dynamic>))
-        .toList()
-      ..sort((a, b) => a.orden.compareTo(b.orden));
+    final paradas =
+        (j['paradas'] as List? ?? const [])
+            .map((e) => ParadaConductor.fromJson(e as Map<String, dynamic>))
+            .toList()
+          ..sort((a, b) => a.orden.compareTo(b.orden));
 
     return RutaConductor(
       id: j['id'] as int,
@@ -182,4 +197,3 @@ RutaConductor? rutaActivaDe(List<RutaConductor> rutas) {
   }
   return rutas.first;
 }
-
