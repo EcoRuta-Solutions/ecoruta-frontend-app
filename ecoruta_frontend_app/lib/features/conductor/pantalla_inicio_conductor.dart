@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/config/app_config.dart';
 import '../../core/theme/app_theme.dart';
 import '../auth/presentation/auth_controller.dart';
+import 'presentation/accesibilidad_conductor.dart';
 import 'presentation/navegacion_conductor_controller.dart';
 import 'presentation/pantalla_mapa_conductor.dart';
 import 'presentation/pantalla_mas_conductor.dart';
@@ -33,21 +35,32 @@ class PantallaInicioConductor extends ConsumerWidget {
         backgroundColor: EcoColors.fondo,
         title: Text(titulo),
         actions: [
-          IconButton(
-            tooltip: 'Cerrar sesión',
-            icon: const Icon(Icons.logout_rounded),
-            onPressed: () => ref.read(authProvider.notifier).logout(),
+          semanticaBotonConductor(
+            etiqueta: 'Cerrar sesión',
+            child: IconButton(
+              tooltip: 'Cerrar sesión',
+              constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+              icon: const Icon(Icons.logout_rounded),
+              onPressed: () => ref.read(authProvider.notifier).logout(),
+            ),
           ),
           const SizedBox(width: 8),
         ],
       ),
-      body: AnimatedSwitcher(
-        duration: const Duration(milliseconds: 220),
-        switchInCurve: Curves.easeOut,
-        switchOutCurve: Curves.easeIn,
-        transitionBuilder: (child, animation) =>
-            FadeTransition(opacity: animation, child: child),
-        child: KeyedSubtree(key: ValueKey(destino), child: pantalla),
+      body: Column(
+        children: [
+          if (AppConfig.usarDatosDeEjemplo) const _AvisoDatosEjemplo(),
+          Expanded(
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 220),
+              switchInCurve: Curves.easeOut,
+              switchOutCurve: Curves.easeIn,
+              transitionBuilder: (child, animation) =>
+                  FadeTransition(opacity: animation, child: child),
+              child: KeyedSubtree(key: ValueKey(destino), child: pantalla),
+            ),
+          ),
+        ],
       ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: destino.index,
@@ -79,4 +92,32 @@ class PantallaInicioConductor extends ConsumerWidget {
       ),
     );
   }
+}
+
+class _AvisoDatosEjemplo extends StatelessWidget {
+  const _AvisoDatosEjemplo();
+
+  @override
+  Widget build(BuildContext context) => Container(
+    width: double.infinity,
+    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+    color: const Color(0xFFFFF5E3),
+    child: const SafeArea(
+      bottom: false,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.science_outlined, size: 16, color: Color(0xFF8A5A00)),
+          SizedBox(width: 8),
+          Text(
+            'Datos de ejemplo',
+            style: TextStyle(
+              color: Color(0xFF8A5A00),
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
 }

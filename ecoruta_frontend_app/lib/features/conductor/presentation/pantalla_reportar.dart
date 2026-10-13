@@ -5,6 +5,7 @@ import 'package:latlong2/latlong.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../data/repositorio_conductor.dart';
+import 'accesibilidad_conductor.dart';
 
 const _centroTrujillo = LatLng(-8.1116, -79.0288);
 
@@ -137,19 +138,23 @@ class _PantallaReportarState extends ConsumerState<PantallaReportar> {
               ?.copyWith(color: EcoColors.textoSecundario),
         ),
         const SizedBox(height: 20),
-        FilledButton.icon(
-          onPressed: _enviando ? null : _enviar,
-          icon: _enviando
-              ? const SizedBox(
-                  height: 20,
-                  width: 20,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2.5,
-                    color: Colors.white,
-                  ),
-                )
-              : const Icon(Icons.send_rounded),
-          label: Text(_enviando ? 'Enviando...' : 'Enviar reporte'),
+        semanticaBotonConductor(
+          etiqueta: _enviando ? 'Enviando reporte' : 'Enviar reporte',
+          child: FilledButton.icon(
+            style: estiloBotonConductor,
+            onPressed: _enviando ? null : _enviar,
+            icon: _enviando
+                ? const SizedBox(
+                    height: 20,
+                    width: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.5,
+                      color: Colors.white,
+                    ),
+                  )
+                : const Icon(Icons.send_rounded),
+            label: Text(_enviando ? 'Enviando...' : 'Enviar reporte'),
+          ),
         ),
       ],
     );

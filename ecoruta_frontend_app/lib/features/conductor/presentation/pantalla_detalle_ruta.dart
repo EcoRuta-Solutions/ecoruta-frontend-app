@@ -5,6 +5,7 @@ import 'package:latlong2/latlong.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../data/modelos_conductor.dart';
+import 'accesibilidad_conductor.dart';
 import 'mis_rutas_controller.dart';
 
 const _centroTrujillo = LatLng(-8.1116, -79.0288);
@@ -23,10 +24,14 @@ class PantallaDetalleRuta extends ConsumerWidget {
       body: detalle.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (_, _) => Center(
-          child: FilledButton.icon(
-            onPressed: () => ref.invalidate(detalleRutaProvider(idRuta)),
-            icon: const Icon(Icons.refresh_rounded),
-            label: const Text('Reintentar'),
+          child: semanticaBotonConductor(
+            etiqueta: 'Reintentar carga del detalle de ruta',
+            child: FilledButton.icon(
+              style: estiloBotonConductor,
+              onPressed: () => ref.invalidate(detalleRutaProvider(idRuta)),
+              icon: const Icon(Icons.refresh_rounded),
+              label: const Text('Reintentar'),
+            ),
           ),
         ),
         data: (ruta) => RefreshIndicator(
@@ -60,9 +65,9 @@ class _ResumenRuta extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final visual = Theme.of(
-      context,
-    ).extension<ColoresProceso>()!.para(_estadoProcesoConductor(ruta.estado));
+    final visual = Theme.of(context)
+        .extension<ColoresProceso>()!
+        .para(_estadoProcesoConductor(ruta.estado));
 
     return Card(
       child: Padding(
@@ -122,8 +127,7 @@ class _ResumenRuta extends StatelessWidget {
                 ),
                 _Dato(
                   icono: Icons.schedule_outlined,
-                  texto:
-                      '${_hora(ruta.horaInicio)} - ${_hora(ruta.horaFin)}',
+                  texto: '${_hora(ruta.horaInicio)} - ${_hora(ruta.horaFin)}',
                 ),
                 _Dato(
                   icono: Icons.task_alt_rounded,
@@ -237,7 +241,17 @@ class _ListaParadas extends ConsumerWidget {
                 value: parada.recolectado,
                 controlAffinity: ListTileControlAffinity.leading,
                 title: Text(parada.titulo),
-                subtitle: Text('Orden ${parada.orden}'),
+                subtitle: Text(
+                  [
+                    'Orden ${parada.orden}',
+                    if (parada.horaEstimada != null)
+                      'Hora estimada ${_hora(parada.horaEstimada!)}',
+                    if (parada.nodo?.llenado != null)
+                      'Llenado ${parada.nodo!.llenado!.round()}%',
+                    if (parada.nodo?.prioridad != null)
+                      'Prioridad ${parada.nodo!.prioridad}',
+                  ].join(' · '),
+                ),
                 onChanged: (valor) => _marcarParada(
                   context,
                   ref,
@@ -273,24 +287,92 @@ class _AccionesRuta extends ConsumerWidget {
       }
     }
 
+    Future<void> confirmarCancelacion() async {
+      final confirmar = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Cancelar ruta'),
+          content: const Text(
+            '¿Quieres cancelar esta ruta? Esta acción actualizará su estado.',
+          ),
+          actions: [
+            semanticaBotonConductor(
+              etiqueta: 'Volver sin cancelar la ruta',
+              child: TextButton(
+                style: estiloBotonConductor,
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Volver'),
+              ),
+            ),
+            semanticaBotonConductor(
+              etiqueta: 'Confirmar cancelación de ruta',
+              child: FilledButton(
+                style: estiloBotonConductor,
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('Cancelar ruta'),
+              ),
+            ),
+          ],
+        ),
+      );
+      if (confirmar == true && context.mounted) {
+        await cambiar(EstadoRutaConductor.cancelado, 'Ruta cancelada.');
+      }
+    }
+
     return switch (ruta.estado) {
-      EstadoRutaConductor.pendiente => FilledButton.icon(
-        onPressed: () => cambiar(
-          EstadoRutaConductor.enProceso,
-          'Ruta iniciada.',
-        ),
-        icon: const Icon(Icons.play_arrow_rounded),
-        label: const Text('Iniciar ruta'),
+      EstadoRutaConductor.pendiente => Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          semanticaBotonConductor(
+            etiqueta: 'Iniciar ruta',
+            child: FilledButton.icon(
+              style: estiloBotonConductor,
+              onPressed: () =>
+                  cambiar(EstadoRutaConductor.enProceso, 'Ruta iniciada.'),
+              icon: const Icon(Icons.play_arrow_rounded),
+              label: const Text('Iniciar ruta'),
+            ),
+          ),
+          const SizedBox(height: 8),
+          semanticaBotonConductor(
+            etiqueta: 'Cancelar ruta',
+            child: OutlinedButton.icon(
+              style: estiloBotonConductor,
+              onPressed: confirmarCancelacion,
+              icon: const Icon(Icons.cancel_outlined),
+              label: const Text('Cancelar ruta'),
+            ),
+          ),
+        ],
       ),
-      EstadoRutaConductor.enProceso => FilledButton.icon(
-        onPressed: () => cambiar(
-          EstadoRutaConductor.completado,
-          'Ruta completada.',
-        ),
-        icon: const Icon(Icons.check_rounded),
-        label: const Text('Completar ruta'),
+      EstadoRutaConductor.enProceso => Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          semanticaBotonConductor(
+            etiqueta: 'Completar ruta',
+            child: FilledButton.icon(
+              style: estiloBotonConductor,
+              onPressed: () =>
+                  cambiar(EstadoRutaConductor.completado, 'Ruta completada.'),
+              icon: const Icon(Icons.check_rounded),
+              label: const Text('Completar ruta'),
+            ),
+          ),
+          const SizedBox(height: 8),
+          semanticaBotonConductor(
+            etiqueta: 'Cancelar ruta',
+            child: OutlinedButton.icon(
+              style: estiloBotonConductor,
+              onPressed: confirmarCancelacion,
+              icon: const Icon(Icons.cancel_outlined),
+              label: const Text('Cancelar ruta'),
+            ),
+          ),
+        ],
       ),
-      _ => const SizedBox.shrink(),
+      EstadoRutaConductor.completado ||
+      EstadoRutaConductor.cancelado => const SizedBox.shrink(),
     };
   }
 }
