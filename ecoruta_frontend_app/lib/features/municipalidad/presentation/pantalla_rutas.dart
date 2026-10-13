@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -7,6 +8,7 @@ import '../../../core/theme/app_theme.dart';
 import '../data/modelos_flota.dart';
 import '../data/modelos_panel.dart';
 import '../data/modelos_ruta.dart';
+import '../data/repositorio_optimizacion.dart';
 import 'controladores_dominio.dart';
 import 'panel_controller.dart';
 import 'widgets/estados_panel.dart';
@@ -34,6 +36,7 @@ class PantallaRutas extends ConsumerWidget {
         ),
       ]),
       data: (datos) => _lista(ref, margen, [
+        const SliverToBoxAdapter(child: _AccionGenerarRuta()),
         SliverPadding(
           padding: const EdgeInsets.only(bottom: 24),
           sliver: SliverToBoxAdapter(
@@ -798,3 +801,156 @@ void _mostrarMensaje(BuildContext context, String mensaje) {
     ..hideCurrentSnackBar()
     ..showSnackBar(SnackBar(content: Text(mensaje)));
 }
+
+class _AccionGenerarRuta extends ConsumerWidget {
+  const _AccionGenerarRuta();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) => Padding(
+    padding: const EdgeInsets.only(bottom: 16),
+    child: Align(
+      alignment: Alignment.centerLeft,
+      child: FilledButton.icon(
+        onPressed: () => _generarRutaOptima(context, ref),
+        icon: const Icon(Icons.auto_awesome_rounded),
+        label: const Text('Generar ruta óptima'),
+      ),
+    ),
+  );
+}
+
+Future<void> _generarRutaOptima(BuildContext context, WidgetRef ref) async {
+  final seleccion =
+      await showDialog<({CamionDisponible camion, ConductorDisponible? conductor})>(
+        context: context,
+        builder: (_) => const _DialogoGenerarRuta(),
+      );
+  if (seleccion == null || !context.mounted) return;
+
+  final repositorio = ref.read(repositorioOptimizacionRutasProvider);
+  try {
+    final resultado = await repositorio.generarOptima(
+      camionId: seleccion.camion.id,
+      conductorId: seleccion.conductor?.id,
+    );
+    if (!context.mounted) return;
+    _mostrarMensaje(
+      context,
+      'Ruta #${resultado.rutaId} generada (${resultado.metodo}): '
+      '${resultado.distanciaKm.toStringAsFixed(1)} km · '
+      '${resultado.paradas} paradas.',
+    );
+  } on DioException catch (error) {
+    if (!context.mounted) return;
+    _mostrarMensaje(context, _mensajeGenerarRuta(error));
+  } catch (_) {
+    if (context.mounted) _mostrarMensaje(context, 'No se pudo generar la ruta.');
+  }
+}
+
+String _mensajeGenerarRuta(DioException error) => switch (error.response?.statusCode) {
+  404 => 'No hay contenedores críticos para generar una ruta.',
+  409 => 'Ese camión ya tiene una ruta asignada para hoy.',
+  422 => 'El camión seleccionado tiene un turno inválido.',
+  _ => 'No se pudo generar la ruta. ¿Está encendido el backend?',
+};
+
+class _DialogoGenerarRuta extends ConsumerStatefulWidget {
+  const _DialogoGenerarRuta();
+
+  @override
+  ConsumerState<_DialogoGenerarRuta> createState() =>
+      _DialogoGenerarRutaState();
+}
+
+class _DialogoGenerarRutaState extends ConsumerState<_DialogoGenerarRuta> {
+  late final Future<List<CamionDisponible>> _camiones;
+  late final Future<List<ConductorDisponible>> _conductores;
+  CamionDisponible? _camion;
+  ConductorDisponible? _conductor;
+
+  @override
+  void initState() {
+    super.initState();
+    final repositorio = ref.read(repositorioOptimizacionRutasProvider);
+    _camiones = repositorio.camiones();
+    _conductores = repositorio.conductores();
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    title: const Text('Generar ruta óptima'),
+    content: SizedBox(
+      width: 340,
+      child: FutureBuilder<List<CamionDisponible>>(
+        future: _camiones,
+        builder: (context, camiones) {
+          if (camiones.hasError) {
+            return const Text('No se pudieron cargar los camiones.');
+          }
+          if (!camiones.hasData) {
+            return const SizedBox(
+              height: 80,
+              child: Center(child: CircularProgressIndicator()),
+            );
+          }
+          final lista = camiones.data!;
+          if (lista.isEmpty) {
+            return const Text('No hay camiones disponibles.');
+          }
+          return Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              DropdownButtonFormField<CamionDisponible>(
+                initialValue: _camion,
+                decoration: const InputDecoration(labelText: 'Camión'),
+                items: [
+                  for (final camion in lista)
+                    DropdownMenuItem(
+                      value: camion,
+                      child: Text('${camion.placa} · ${camion.turno}'),
+                    ),
+                ],
+                onChanged: (valor) => setState(() => _camion = valor),
+              ),
+              const SizedBox(height: 16),
+              FutureBuilder<List<ConductorDisponible>>(
+                future: _conductores,
+                builder: (context, conductores) => DropdownButtonFormField<ConductorDisponible>(
+                  initialValue: _conductor,
+                  decoration: const InputDecoration(
+                    labelText: 'Conductor (opcional)',
+                  ),
+                  items: [
+                    for (final conductor in conductores.data ?? const [])
+                      DropdownMenuItem(
+                        value: conductor,
+                        child: Text(conductor.nombre),
+                      ),
+                  ],
+                  onChanged: (valor) => setState(() => _conductor = valor),
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    ),
+    actions: [
+      TextButton(
+        onPressed: () => Navigator.pop(context),
+        child: const Text('Cancelar'),
+      ),
+      FilledButton(
+        onPressed: _camion == null
+            ? null
+            : () => Navigator.pop(
+                context,
+                (camion: _camion!, conductor: _conductor),
+              ),
+        child: const Text('Generar'),
+      ),
+    ],
+  );
+}
+

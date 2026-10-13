@@ -394,7 +394,7 @@ class _TarjetaPrediccion extends StatelessWidget {
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
-                  'En ${prediccion!.horaEstimadaDesborde.difference(DateTime(2026, 10, 8, 12)).inHours} h · '
+                  'En ${prediccion!.horaEstimadaDesborde.difference(DateTime.now()).inHours} h · '
                   '${TimeOfDay.fromDateTime(prediccion!.horaEstimadaDesborde).format(context)}',
                   style: Theme.of(context).textTheme.bodyMedium
                       ?.copyWith(color: EcoColors.texto),

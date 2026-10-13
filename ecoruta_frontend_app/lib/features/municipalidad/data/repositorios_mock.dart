@@ -1,5 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/config/app_config.dart';
+import '../../../core/network/api_client.dart';
 import 'modelos_alerta.dart';
 import 'modelos_flota.dart';
 import 'modelos_informe.dart';
@@ -8,6 +10,7 @@ import 'modelos_panel.dart';
 import 'modelos_reporte_ciudadano.dart';
 import 'modelos_ruta.dart';
 import 'panel_mock.dart';
+import 'repositorios_api.dart';
 
 abstract interface class RepositorioPanel {
   Future<DatosPanel> cargar();
@@ -27,7 +30,9 @@ class RepositorioPanelMock implements RepositorioPanel {
 }
 
 final repositorioPanelProvider = Provider<RepositorioPanel>(
-  (ref) => RepositorioPanelMock(ref.watch(repositorioContenedoresProvider)),
+  (ref) => AppConfig.usarDatosDeEjemplo
+      ? RepositorioPanelMock(ref.watch(repositorioContenedoresProvider))
+      : RepositorioPanelApi(ref.read(dioProvider)),
 );
 
 abstract interface class RepositorioContenedores {
@@ -510,23 +515,33 @@ class RepositorioInformesMock implements RepositorioInformes {
 }
 
 final repositorioContenedoresProvider = Provider<RepositorioContenedores>(
-  (ref) => RepositorioContenedoresMock(),
+  (ref) => AppConfig.usarDatosDeEjemplo
+      ? RepositorioContenedoresMock()
+      : RepositorioContenedoresApi(ref.read(dioProvider)),
 );
 final repositorioAlertasProvider = Provider<RepositorioAlertas>(
   (ref) => RepositorioAlertasMock(),
 );
 final repositorioRutasProvider = Provider<RepositorioRutas>(
-  (ref) => RepositorioRutasMock(),
+  (ref) => AppConfig.usarDatosDeEjemplo
+      ? RepositorioRutasMock()
+      : RepositorioRutasApi(ref.read(dioProvider)),
 );
 final repositorioFlotaProvider = Provider<RepositorioFlota>(
-  (ref) => RepositorioFlotaMock(),
+  (ref) => AppConfig.usarDatosDeEjemplo
+      ? RepositorioFlotaMock()
+      : RepositorioFlotaApi(ref.read(dioProvider)),
 );
 final repositorioReportesCiudadanosProvider =
     Provider<RepositorioReportesCiudadanos>(
-      (ref) => RepositorioReportesCiudadanosMock(),
+      (ref) => AppConfig.usarDatosDeEjemplo
+          ? RepositorioReportesCiudadanosMock()
+          : RepositorioReportesCiudadanosApi(ref.read(dioProvider)),
     );
 final repositorioInformesProvider = Provider<RepositorioInformes>(
-  (ref) => RepositorioInformesMock(),
+  (ref) => AppConfig.usarDatosDeEjemplo
+      ? RepositorioInformesMock()
+      : RepositorioInformesApi(ref.read(dioProvider)),
 );
 
 final _fechaDemo = DateTime(2026, 10, 8, 12);

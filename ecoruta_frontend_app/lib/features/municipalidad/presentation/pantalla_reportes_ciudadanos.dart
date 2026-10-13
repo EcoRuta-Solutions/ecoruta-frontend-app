@@ -12,7 +12,7 @@ import 'panel_controller.dart';
 import 'widgets/estados_panel.dart';
 
 const _maximoAnchoReportesCiudadanos = 920.0;
-final _ahoraDemo = DateTime(2026, 10, 8, 12);
+DateTime get _ahora => DateTime.now();
 
 class PantallaReportesCiudadanos extends ConsumerStatefulWidget {
   const PantallaReportesCiudadanos({super.key});
@@ -97,7 +97,7 @@ class _PantallaReportesCiudadanosState
     final categoria = _categoria == null || reporte.categoria == _categoria;
     final fecha =
         _dias == null ||
-        reporte.fecha.isAfter(_ahoraDemo.subtract(Duration(days: _dias!)));
+        reporte.fecha.isAfter(_ahora.subtract(Duration(days: _dias!)));
     return estado && categoria && fecha;
   }
 
@@ -651,7 +651,7 @@ EstadoVisual _visualReporte(BuildContext context, EstadoReporte estado) {
 }
 
 String _haceFecha(DateTime fecha) {
-  return formatearTiempoRelativo(fecha, ahora: _ahoraDemo);
+  return formatearTiempoRelativo(fecha, ahora: _ahora);
 }
 
 String _nombreCategoria(CategoriaReporte categoria) => switch (categoria) {
