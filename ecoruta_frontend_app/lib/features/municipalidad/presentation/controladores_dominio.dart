@@ -1,5 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/config/app_config.dart';
+import '../../../core/network/api_client.dart';
+import '../../../core/network/panel_socket.dart';
 import '../data/modelos_alerta.dart';
 import '../data/modelos_flota.dart';
 import '../data/modelos_informe.dart';
@@ -22,8 +27,54 @@ class ContenedoresController extends AsyncNotifier<List<NodoEstado>> {
   RepositorioContenedores get _repositorio =>
       ref.read(repositorioContenedoresProvider);
 
+  StreamSubscription<EventoPanel>? _suscripcion;
+  PanelSocket? _socket;
+
   @override
-  Future<List<NodoEstado>> build() => _repositorio.listar();
+  Future<List<NodoEstado>> build() async {
+    ref.onDispose(_cerrarSocket);
+    final nodos = await _repositorio.listar();
+    if (!AppConfig.usarDatosDeEjemplo) {
+      unawaited(_conectarSocket());
+    }
+    return nodos;
+  }
+
+  Future<void> _conectarSocket() async {
+    final token = await ref.read(tokenStorageProvider).read();
+    if (token == null) return;
+
+    final socket = PanelSocket(token);
+    _socket = socket;
+    _suscripcion = socket
+        .eventos()
+        .listen(_aplicarEvento, onError: (_) {}, cancelOnError: false);
+  }
+
+  Future<void> _cerrarSocket() async {
+    await _suscripcion?.cancel();
+    _suscripcion = null;
+    await _socket?.cerrar();
+    _socket = null;
+  }
+
+  void _aplicarEvento(EventoPanel evento) {
+    final actual = state.asData?.value;
+    if (actual == null) return;
+
+    state = AsyncData([
+      for (final nodo in actual)
+        if (nodo.id == evento.nodoId)
+          nodo.conLectura(
+            llenado: evento.llenado,
+            estado: estadoDesdeTexto(evento.estado),
+            volteado: evento.volteado,
+            ultimaLectura: evento.timestamp,
+          )
+        else
+          nodo,
+    ]);
+  }
 
   Future<void> guardar(NodoEstado nodo) async {
     await Future<void>.delayed(_latenciaAccion);
