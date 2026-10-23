@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/app_theme.dart';
 import 'pantalla_contenedores.dart';
-import 'pantalla_reportes_ciudadanos.dart';
 import 'pantalla_usuarios_flota.dart';
 import 'navegacion_controller.dart';
 
@@ -17,8 +16,6 @@ class PantallaMas extends ConsumerWidget {
     if (opcion != null) {
       final pantalla = switch (opcion) {
         OpcionMasMunicipalidad.contenedores => const PantallaContenedores(),
-        OpcionMasMunicipalidad.reportesCiudadanos =>
-          const PantallaReportesCiudadanos(),
         OpcionMasMunicipalidad.usuariosYFlota => const PantallaUsuariosFlota(),
         OpcionMasMunicipalidad.informes => _PantallaModuloPendiente(
           titulo: _etiqueta(opcion),
@@ -136,14 +133,12 @@ class _PantallaModuloPendiente extends StatelessWidget {
 
 String _etiqueta(OpcionMasMunicipalidad opcion) => switch (opcion) {
   OpcionMasMunicipalidad.contenedores => 'Contenedores',
-  OpcionMasMunicipalidad.reportesCiudadanos => 'Reportes ciudadanos',
   OpcionMasMunicipalidad.usuariosYFlota => 'Usuarios y flota',
   OpcionMasMunicipalidad.informes => 'Informes',
 };
 
 IconData _icono(OpcionMasMunicipalidad opcion) => switch (opcion) {
   OpcionMasMunicipalidad.contenedores => Icons.delete_outline_rounded,
-  OpcionMasMunicipalidad.reportesCiudadanos => Icons.campaign_outlined,
   OpcionMasMunicipalidad.usuariosYFlota => Icons.groups_outlined,
   OpcionMasMunicipalidad.informes => Icons.assessment_outlined,
 };

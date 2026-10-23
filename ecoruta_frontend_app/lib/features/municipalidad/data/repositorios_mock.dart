@@ -7,7 +7,6 @@ import 'modelos_flota.dart';
 import 'modelos_informe.dart';
 import 'modelos_lectura_nodo.dart';
 import 'modelos_panel.dart';
-import 'modelos_reporte_ciudadano.dart';
 import 'modelos_ruta.dart';
 import 'panel_mock.dart';
 import 'repositorios_api.dart';
@@ -424,86 +423,6 @@ class RepositorioFlotaMock implements RepositorioFlota {
   }
 }
 
-abstract interface class RepositorioReportesCiudadanos {
-  Future<List<ReporteCiudadano>> listar();
-  Future<void> iniciarAtencion(
-    String id, {
-    required String asignadoA,
-    required String quien,
-  });
-  Future<void> resolver(String id, {required String quien, String? nota});
-}
-
-class RepositorioReportesCiudadanosMock
-    implements RepositorioReportesCiudadanos {
-  final List<ReporteCiudadano> _reportes = _reportesDemo.toList();
-
-  @override
-  Future<List<ReporteCiudadano>> listar() async => List.unmodifiable(_reportes);
-
-  @override
-  Future<void> iniciarAtencion(
-    String id, {
-    required String asignadoA,
-    required String quien,
-  }) async {
-    final reporte = _porId(id);
-    if (reporte.estado != EstadoReporte.recibido) {
-      throw StateError('Solo se pueden asignar reportes recibidos.');
-    }
-    _actualizar(
-      reporte.copiar(
-        estado: EstadoReporte.enAtencion,
-        asignadoA: asignadoA,
-        historial: [
-          ...reporte.historial,
-          AccionReporte(
-            que: 'Reporte asignado a $asignadoA',
-            quien: quien,
-            cuando: _fechaDemo,
-          ),
-        ],
-      ),
-    );
-  }
-
-  @override
-  Future<void> resolver(
-    String id, {
-    required String quien,
-    String? nota,
-  }) async {
-    final reporte = _porId(id);
-    if (reporte.estado != EstadoReporte.enAtencion) {
-      throw StateError('Primero se debe asignar el reporte.');
-    }
-    _actualizar(
-      reporte.copiar(
-        estado: EstadoReporte.resuelto,
-        historial: [
-          ...reporte.historial,
-          AccionReporte(
-            que: 'Reporte resuelto',
-            quien: quien,
-            cuando: _fechaDemo,
-            nota: nota,
-          ),
-        ],
-      ),
-    );
-  }
-
-  ReporteCiudadano _porId(String id) => _reportes.firstWhere(
-    (reporte) => reporte.id == id,
-    orElse: () => throw StateError('No existe el reporte solicitado.'),
-  );
-
-  void _actualizar(ReporteCiudadano reporte) {
-    final index = _reportes.indexWhere((actual) => actual.id == reporte.id);
-    _reportes[index] = reporte;
-  }
-}
-
 abstract interface class RepositorioInformes {
   Future<DatosInforme> cargar(DateTime inicio, DateTime fin);
 }
@@ -532,12 +451,6 @@ final repositorioFlotaProvider = Provider<RepositorioFlota>(
       ? RepositorioFlotaMock()
       : RepositorioFlotaApi(ref.read(dioProvider)),
 );
-final repositorioReportesCiudadanosProvider =
-    Provider<RepositorioReportesCiudadanos>(
-      (ref) => AppConfig.usarDatosDeEjemplo
-          ? RepositorioReportesCiudadanosMock()
-          : RepositorioReportesCiudadanosApi(ref.read(dioProvider)),
-    );
 final repositorioInformesProvider = Provider<RepositorioInformes>(
   (ref) => AppConfig.usarDatosDeEjemplo
       ? RepositorioInformesMock()
@@ -692,31 +605,6 @@ final _rutasDemo = <RutaMunicipal>[
     paradasFijas: 9,
     conductorId: 2,
     vehiculoId: 2,
-  ),
-];
-
-final _reportesDemo = <ReporteCiudadano>[
-  ReporteCiudadano(
-    id: 'REP-001',
-    categoria: CategoriaReporte.contenedorLleno,
-    descripcion: 'El contenedor está lleno desde esta mañana.',
-    latitud: -8.1116,
-    longitud: -79.0288,
-    fecha: DateTime(2026, 10, 8, 9, 30),
-    estado: EstadoReporte.recibido,
-    nodoRelacionado: 1,
-    historial: const [],
-  ),
-  ReporteCiudadano(
-    id: 'REP-002',
-    categoria: CategoriaReporte.basuraAcumulada,
-    descripcion: 'Se acumularon bolsas alrededor del punto de recojo.',
-    latitud: -8.1232,
-    longitud: -79.0358,
-    fecha: DateTime(2026, 10, 7, 17, 15),
-    estado: EstadoReporte.enAtencion,
-    asignadoA: 'Luis Rodríguez',
-    historial: const [],
   ),
 ];
 
