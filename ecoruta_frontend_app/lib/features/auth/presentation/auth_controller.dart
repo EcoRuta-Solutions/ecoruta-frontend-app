@@ -6,6 +6,11 @@ import '../data/auth_repository.dart';
 
 enum AuthStatus { unknown, loggedOut, loggedIn }
 
+/// Roles que pueden usar esta app.
+const rolesPermitidos = {'municipalidad', 'conductor'};
+
+const mensajeSinAcceso = 'Tu cuenta no tiene acceso a esta app';
+
 /// Foto del estado de la sesión en un momento dado.
 class AuthState {
   final AuthStatus status;
@@ -39,6 +44,14 @@ class AuthController extends Notifier<AuthState> {
         return;
       }
       final user = await _repo.me();
+      if (!rolesPermitidos.contains(user.rol)) {
+        await _repo.logout();
+        state = const AuthState(
+          status: AuthStatus.loggedOut,
+          error: mensajeSinAcceso,
+        );
+        return;
+      }
       state = AuthState(status: AuthStatus.loggedIn, user: user);
     } catch (_) {
       await _repo.logout();
@@ -51,6 +64,14 @@ class AuthController extends Notifier<AuthState> {
     try {
       await _repo.login(email.trim(), password);
       final user = await _repo.me();
+      if (!rolesPermitidos.contains(user.rol)) {
+        await _repo.logout();
+        state = const AuthState(
+          status: AuthStatus.loggedOut,
+          error: mensajeSinAcceso,
+        );
+        return;
+      }
       state = AuthState(status: AuthStatus.loggedIn, user: user);
     } on DioException catch (e) {
       state = AuthState(status: AuthStatus.loggedOut, error: _mensaje(e));

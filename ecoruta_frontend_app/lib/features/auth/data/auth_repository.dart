@@ -8,7 +8,7 @@ class Usuario {
   final int? id;
   final String email;
   final String nombre;
-  final String rol; // ciudadano | conductor | municipalidad
+  final String rol; // conductor | municipalidad
 
   const Usuario({
     this.id,
