@@ -25,6 +25,7 @@ final routerProvider = Provider<GoRouter>((ref) {
   // Avisa al router cada vez que cambia el estado de la sesión.
   final cambioSesion = ValueNotifier<int>(0);
   ref.listen(authProvider, (_, _) => cambioSesion.value++);
+  ref.listen(celebrandoLoginProvider, (_, _) => cambioSesion.value++);
   ref.onDispose(cambioSesion.dispose);
 
   return GoRouter(
@@ -42,6 +43,12 @@ final routerProvider = Provider<GoRouter>((ref) {
       // Sin sesión: solo puede estar en el login.
       if (auth.status == AuthStatus.loggedOut) {
         return rutaActual == '/login' ? null : '/login';
+      }
+
+      // Login recién hecho en esta pantalla: espera a que termine la
+      // animación de éxito. Una sesión recuperada no pasa por aquí.
+      if (rutaActual == '/login' && ref.read(celebrandoLoginProvider)) {
+        return null;
       }
 
       // Con sesión: lo mandamos a la pantalla de su rol.

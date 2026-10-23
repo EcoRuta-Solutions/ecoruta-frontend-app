@@ -38,7 +38,8 @@ class LogoEcoRuta extends StatelessWidget {
                     child: CustomPaint(painter: _PintorEscena()),
                   ),
                   Positioned(
-                    left: _camionIzquierda +
+                    left:
+                        _camionIzquierda +
                         salidaCamion * (ancho - _camionIzquierda),
                     top: _camionArriba,
                     child: const CamionEcoRuta(),

@@ -25,6 +25,27 @@ const _erroresDeDatos = {
   'Revisa los datos ingresados',
 };
 
+/// Está en `true` desde que el usuario pulsa "Ingresar" hasta que termina la
+/// animación de éxito. Mientras tanto el router no sale de /login.
+/// Al recuperar una sesión guardada sigue en `false` y se navega de inmediato.
+class CelebrandoLogin extends Notifier<bool> {
+  @override
+  bool build() => false;
+
+  void iniciar() => state = true;
+  void terminar() => state = false;
+}
+
+final celebrandoLoginProvider = NotifierProvider<CelebrandoLogin, bool>(
+  CelebrandoLogin.new,
+);
+
+/// Cuánto dura la animación de éxito antes de pasar a la pantalla del rol.
+const duracionExitoLogin = Duration(milliseconds: 1400);
+
+/// Pausa sin movimiento cuando el sistema pide reducir animaciones.
+const pausaExitoSinAnimacion = Duration(milliseconds: 800);
+
 class PantallaLogin extends ConsumerStatefulWidget {
   const PantallaLogin({super.key});
 
@@ -32,18 +53,27 @@ class PantallaLogin extends ConsumerStatefulWidget {
   ConsumerState<PantallaLogin> createState() => _PantallaLoginState();
 }
 
-class _PantallaLoginState extends ConsumerState<PantallaLogin> {
+class _PantallaLoginState extends ConsumerState<PantallaLogin>
+    with SingleTickerProviderStateMixin {
   final _correoCtrl = TextEditingController();
   final _claveCtrl = TextEditingController();
+  late final _animacion = AnimationController(
+    vsync: this,
+    duration: duracionExitoLogin,
+  );
   bool _ocultarClave = true;
 
   /// La validación local falló (falta un dato o el correo no es válido).
   bool _faltanDatos = false;
 
+  /// El login terminó bien y se está mostrando "Sesión iniciada".
+  bool _exito = false;
+
   @override
   void dispose() {
     _correoCtrl.dispose();
     _claveCtrl.dispose();
+    _animacion.dispose();
     super.dispose();
   }
 
@@ -52,13 +82,39 @@ class _PantallaLoginState extends ConsumerState<PantallaLogin> {
     final claveValida = _claveCtrl.text.isNotEmpty;
     setState(() => _faltanDatos = !correoValido || !claveValida);
     if (_faltanDatos) return;
+    ref.read(celebrandoLoginProvider.notifier).iniciar();
     ref.read(authProvider.notifier).login(_correoCtrl.text, _claveCtrl.text);
+  }
+
+  Future<void> _celebrar() async {
+    final celebrando = ref.read(celebrandoLoginProvider.notifier);
+    FocusScope.of(context).unfocus();
+    setState(() => _exito = true);
+    if (MediaQuery.disableAnimationsOf(context)) {
+      _animacion.value = 1;
+      await Future<void>.delayed(pausaExitoSinAnimacion);
+    } else {
+      await _animacion.forward().orCancel.catchError((_) {});
+    }
+    // Al apagarlo, el router lleva a la pantalla del rol.
+    celebrando.terminar();
   }
 
   @override
   Widget build(BuildContext context) {
+    ref.listen(authProvider, (_, siguiente) {
+      if (!ref.read(celebrandoLoginProvider)) return;
+      if (siguiente.status == AuthStatus.loggedIn) {
+        _celebrar();
+      } else if (!siguiente.loading) {
+        ref.read(celebrandoLoginProvider.notifier).terminar();
+      }
+    });
+
     final auth = ref.watch(authProvider);
-    final error = _faltanDatos ? const _ErrorLogin.datos() : _ErrorLogin.de(auth);
+    final error = _faltanDatos
+        ? const _ErrorLogin.datos()
+        : _ErrorLogin.de(auth);
 
     return Scaffold(
       backgroundColor: _Login.fondo,
@@ -73,72 +129,146 @@ class _PantallaLoginState extends ConsumerState<PantallaLogin> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    const LogoEcoRuta(),
+                    AnimatedBuilder(
+                      animation: _animacion,
+                      builder: (_, _) => LogoEcoRuta(
+                        salidaCamion: _salidaCamion.evaluate(_animacion),
+                      ),
+                    ),
                     const SizedBox(height: 24),
                     const _Titulo(),
                     const SizedBox(height: 36),
-                    const _Etiqueta('Correo'),
-                    const SizedBox(height: 6),
-                    _Campo(
-                      key: const Key('login-correo'),
-                      controller: _correoCtrl,
-                      conError: error?.marcaCampos ?? false,
-                      keyboardType: TextInputType.emailAddress,
-                      textInputAction: TextInputAction.next,
-                      autofillHints: const [AutofillHints.email],
-                    ),
-                    const SizedBox(height: 16),
-                    const _Etiqueta('Contraseña'),
-                    const SizedBox(height: 6),
-                    _Campo(
-                      key: const Key('login-clave'),
-                      controller: _claveCtrl,
-                      conError: error?.marcaCampos ?? false,
-                      obscureText: _ocultarClave,
-                      textInputAction: TextInputAction.done,
-                      autofillHints: const [AutofillHints.password],
-                      onSubmitted: (_) {
-                        if (!auth.loading) _enviar();
-                      },
-                      sufijo: IconButton(
-                        tooltip: _ocultarClave
-                            ? 'Mostrar contraseña'
-                            : 'Ocultar contraseña',
-                        color: _Login.texto.withValues(alpha: 0.7),
-                        icon: Icon(
-                          _ocultarClave
-                              ? Icons.visibility_outlined
-                              : Icons.visibility_off_outlined,
-                        ),
-                        onPressed: () =>
-                            setState(() => _ocultarClave = !_ocultarClave),
+                    if (_exito)
+                      _Exito(
+                        rol: auth.user?.rol ?? '',
+                        aparicion: _aparicionCheck.animate(_animacion),
+                      )
+                    else ...[
+                      const _Etiqueta('Correo'),
+                      const SizedBox(height: 6),
+                      _Campo(
+                        key: const Key('login-correo'),
+                        controller: _correoCtrl,
+                        conError: error?.marcaCampos ?? false,
+                        keyboardType: TextInputType.emailAddress,
+                        textInputAction: TextInputAction.next,
+                        autofillHints: const [AutofillHints.email],
                       ),
-                    ),
-                    if (error != null) ...[
-                      const SizedBox(height: 8),
-                      Semantics(
-                        liveRegion: true,
-                        child: Text(
-                          error.mensaje,
-                          style: const TextStyle(
-                            fontSize: 14,
-                            color: _Login.error,
+                      const SizedBox(height: 16),
+                      const _Etiqueta('Contraseña'),
+                      const SizedBox(height: 6),
+                      _Campo(
+                        key: const Key('login-clave'),
+                        controller: _claveCtrl,
+                        conError: error?.marcaCampos ?? false,
+                        obscureText: _ocultarClave,
+                        textInputAction: TextInputAction.done,
+                        autofillHints: const [AutofillHints.password],
+                        onSubmitted: (_) {
+                          if (!auth.loading) _enviar();
+                        },
+                        sufijo: IconButton(
+                          tooltip: _ocultarClave
+                              ? 'Mostrar contraseña'
+                              : 'Ocultar contraseña',
+                          color: _Login.texto.withValues(alpha: 0.7),
+                          icon: Icon(
+                            _ocultarClave
+                                ? Icons.visibility_outlined
+                                : Icons.visibility_off_outlined,
+                          ),
+                          onPressed: () =>
+                              setState(() => _ocultarClave = !_ocultarClave),
+                        ),
+                      ),
+                      if (error != null) ...[
+                        const SizedBox(height: 8),
+                        Semantics(
+                          liveRegion: true,
+                          child: Text(
+                            error.mensaje,
+                            style: const TextStyle(
+                              fontSize: 14,
+                              color: _Login.error,
+                            ),
                           ),
                         ),
+                        const SizedBox(height: 8),
+                      ] else
+                        const SizedBox(height: 24),
+                      _BotonIngresar(
+                        cargando: auth.loading,
+                        onPressed: _enviar,
                       ),
-                      const SizedBox(height: 8),
-                    ] else
-                      const SizedBox(height: 24),
-                    _BotonIngresar(
-                      cargando: auth.loading,
-                      onPressed: _enviar,
-                    ),
+                    ],
                   ],
                 ),
               ),
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Primero aparece el check; luego el camión sale del logo hacia la derecha.
+final _aparicionCheck = CurveTween(
+  curve: const Interval(0, 0.3, curve: Curves.easeOutBack),
+);
+final _salidaCamion = CurveTween(
+  curve: const Interval(0.25, 1, curve: Curves.easeInCubic),
+);
+
+/// Círculo verde con check, "Sesión iniciada" y el rol con el que entra.
+class _Exito extends StatelessWidget {
+  final String rol;
+  final Animation<double> aparicion;
+
+  const _Exito({required this.rol, required this.aparicion});
+
+  static String _nombreRol(String rol) => switch (rol) {
+    'municipalidad' => 'Municipalidad',
+    'conductor' => 'Conductor',
+    _ => rol,
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      liveRegion: true,
+      child: Column(
+        children: [
+          ScaleTransition(
+            scale: aparicion,
+            child: Container(
+              width: 72,
+              height: 72,
+              decoration: const BoxDecoration(
+                color: _Login.verde,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.check_rounded,
+                color: Colors.white,
+                size: 44,
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          const Text(
+            'Sesión iniciada',
+            style: TextStyle(fontSize: 22, fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Entrando como ${_nombreRol(rol)}',
+            style: TextStyle(
+              fontSize: 16,
+              color: _Login.texto.withValues(alpha: 0.75),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -151,9 +281,7 @@ class _ErrorLogin {
 
   const _ErrorLogin(this.mensaje, {required this.marcaCampos});
 
-  const _ErrorLogin.datos()
-    : mensaje = mensajeRevisaDatos,
-      marcaCampos = true;
+  const _ErrorLogin.datos() : mensaje = mensajeRevisaDatos, marcaCampos = true;
 
   /// Traduce el error del AuthController al texto del diseño.
   /// Los fallos de red o del servidor conservan su mensaje y no marcan
@@ -177,8 +305,14 @@ class _Titulo extends StatelessWidget {
     return const Text.rich(
       TextSpan(
         children: [
-          TextSpan(text: 'EcoRuta', style: TextStyle(color: _Login.azul)),
-          TextSpan(text: ' Trujillo', style: TextStyle(color: _Login.verde)),
+          TextSpan(
+            text: 'EcoRuta',
+            style: TextStyle(color: _Login.azul),
+          ),
+          TextSpan(
+            text: ' Trujillo',
+            style: TextStyle(color: _Login.verde),
+          ),
         ],
       ),
       textAlign: TextAlign.center,
