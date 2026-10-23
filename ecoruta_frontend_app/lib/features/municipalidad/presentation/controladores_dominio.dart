@@ -10,7 +10,6 @@ import '../data/modelos_flota.dart';
 import '../data/modelos_informe.dart';
 import '../data/modelos_lectura_nodo.dart';
 import '../data/modelos_panel.dart';
-import '../data/modelos_reporte_ciudadano.dart';
 import '../data/modelos_ruta.dart';
 import '../data/repositorios_mock.dart';
 import 'panel_controller.dart';
@@ -255,42 +254,6 @@ class FlotaController extends AsyncNotifier<DatosFlota> {
         usuarios: usuarios,
       ),
     );
-  }
-}
-
-final reportesCiudadanosControllerProvider =
-    AsyncNotifierProvider<ReportesCiudadanosController, List<ReporteCiudadano>>(
-      ReportesCiudadanosController.new,
-      retry: (_, _) => null,
-    );
-
-class ReportesCiudadanosController
-    extends AsyncNotifier<List<ReporteCiudadano>> {
-  RepositorioReportesCiudadanos get _repositorio =>
-      ref.read(repositorioReportesCiudadanosProvider);
-
-  @override
-  Future<List<ReporteCiudadano>> build() =>
-      ref.watch(repositorioReportesCiudadanosProvider).listar();
-
-  Future<void> iniciarAtencion(
-    String id, {
-    required String asignadoA,
-    required String quien,
-  }) async {
-    await Future<void>.delayed(_latenciaAccion);
-    await _repositorio.iniciarAtencion(id, asignadoA: asignadoA, quien: quien);
-    state = AsyncData(await _repositorio.listar());
-  }
-
-  Future<void> resolver(
-    String id, {
-    required String quien,
-    String? nota,
-  }) async {
-    await Future<void>.delayed(_latenciaAccion);
-    await _repositorio.resolver(id, quien: quien, nota: nota);
-    state = AsyncData(await _repositorio.listar());
   }
 }
 

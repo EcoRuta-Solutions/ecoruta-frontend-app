@@ -6,7 +6,6 @@ import 'modelos_flota.dart';
 import 'modelos_informe.dart';
 import 'modelos_lectura_nodo.dart';
 import 'modelos_panel.dart';
-import 'modelos_reporte_ciudadano.dart';
 import 'modelos_ruta.dart';
 import 'panel_mock.dart';
 import 'repositorios_mock.dart';
@@ -378,99 +377,6 @@ class RepositorioInformesApi implements RepositorioInformes {
       throw _errorApi(error, alternativo: 'No se pudieron cargar los informes.');
     }
   }
-}
-
-/// Reportes ciudadanos contra el backend real (GET /reportes, PATCH
-/// /reportes/{id}). El backend no guarda categoría ni historial, así que la
-/// categoría se infiere de la descripción y el historial queda vacío.
-class RepositorioReportesCiudadanosApi implements RepositorioReportesCiudadanos {
-  RepositorioReportesCiudadanosApi(this._dio);
-
-  final Dio _dio;
-
-  @override
-  Future<List<ReporteCiudadano>> listar() async {
-    try {
-      final respuesta = await _dio.get(
-        '/reportes',
-        queryParameters: {'limit': 200},
-      );
-      return [
-        for (final item in (respuesta.data as List))
-          _reporteDesdeJson(item as Map<String, dynamic>),
-      ];
-    } on DioException catch (error) {
-      throw _errorApi(error, alternativo: 'No se pudieron cargar los reportes.');
-    }
-  }
-
-  @override
-  Future<void> iniciarAtencion(
-    String id, {
-    required String asignadoA,
-    required String quien,
-  }) async {
-    try {
-      await _dio.patch(
-        '/reportes/${_idNumerico(id)}',
-        data: {'estado': 'en_atencion', 'asignado_a': asignadoA},
-      );
-    } on DioException catch (error) {
-      throw _errorApi(error, alternativo: 'No se pudo asignar el reporte.');
-    }
-  }
-
-  @override
-  Future<void> resolver(String id, {required String quien, String? nota}) async {
-    try {
-      await _dio.patch(
-        '/reportes/${_idNumerico(id)}',
-        data: {'estado': 'atendido'},
-      );
-    } on DioException catch (error) {
-      throw _errorApi(error, alternativo: 'No se pudo resolver el reporte.');
-    }
-  }
-}
-
-ReporteCiudadano _reporteDesdeJson(Map<String, dynamic> j) {
-  final descripcion = j['descripcion'] as String;
-  return ReporteCiudadano(
-    id: 'REP-${(j['id'] as int).toString().padLeft(3, '0')}',
-    categoria: _categoriaDesdeDescripcion(descripcion),
-    descripcion: descripcion,
-    latitud: (j['latitud'] as num).toDouble(),
-    longitud: (j['longitud'] as num).toDouble(),
-    fecha: DateTime.parse(j['timestamp'] as String).toLocal(),
-    estado: switch (j['estado']) {
-      'en_atencion' => EstadoReporte.enAtencion,
-      'atendido' => EstadoReporte.resuelto,
-      _ => EstadoReporte.recibido,
-    },
-    historial: const [],
-    asignadoA: j['asignado_a'] as String?,
-  );
-}
-
-CategoriaReporte _categoriaDesdeDescripcion(String texto) {
-  final t = texto.toLowerCase();
-  if (t.contains('dañ') ||
-      t.contains('dani') ||
-      t.contains('roto') ||
-      t.contains('rota') ||
-      t.contains('averi')) {
-    return CategoriaReporte.danado;
-  }
-  if (t.contains('basura') ||
-      t.contains('residuo') ||
-      t.contains('acumul')) {
-    return CategoriaReporte.basuraAcumulada;
-  }
-  if (t.contains('olor')) return CategoriaReporte.malOlor;
-  if (t.contains('llen') || t.contains('desbord') || t.contains('contenedor')) {
-    return CategoriaReporte.contenedorLleno;
-  }
-  return CategoriaReporte.otro;
 }
 
 Vehiculo _vehiculoDesdeJson(Map<String, dynamic> j) => Vehiculo(

@@ -1,7 +1,6 @@
 import 'package:ecoruta_frontend_app/features/municipalidad/data/modelos_alerta.dart';
 import 'package:ecoruta_frontend_app/features/municipalidad/data/modelos_flota.dart';
 import 'package:ecoruta_frontend_app/features/municipalidad/data/modelos_ruta.dart';
-import 'package:ecoruta_frontend_app/features/municipalidad/data/modelos_reporte_ciudadano.dart';
 import 'package:ecoruta_frontend_app/features/municipalidad/data/panel_mock.dart';
 import 'package:ecoruta_frontend_app/features/municipalidad/data/repositorios_mock.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -201,33 +200,6 @@ void main() {
       throwsStateError,
     );
   });
-
-  test(
-    'avanza reportes recibidos a atención y resolución con historial',
-    () async {
-      final repositorio = RepositorioReportesCiudadanosMock();
-      final reporte = (await repositorio.listar()).first;
-      await repositorio.iniciarAtencion(
-        reporte.id,
-        asignadoA: 'Luis Rodríguez',
-        quien: 'Ana Sánchez',
-      );
-      expect(
-        (await repositorio.listar()).first.estado,
-        EstadoReporte.enAtencion,
-      );
-
-      await repositorio.resolver(
-        reporte.id,
-        quien: 'Luis Rodríguez',
-        nota: 'Punto de recojo atendido.',
-      );
-      final resuelto = (await repositorio.listar()).first;
-      expect(resuelto.estado, EstadoReporte.resuelto);
-      expect(resuelto.historial, hasLength(2));
-      expect(resuelto.historial.last.nota, 'Punto de recojo atendido.');
-    },
-  );
 
   test('impide desactivar un conductor que está en ruta', () async {
     final repositorio = RepositorioFlotaMock();

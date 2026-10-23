@@ -25,12 +25,6 @@ abstract interface class RepositorioConductor {
     int paradaId,
     bool recolectado,
   );
-
-  Future<void> crearReporte({
-    required double latitud,
-    required double longitud,
-    required String descripcion,
-  });
 }
 
 class RepositorioConductorApi implements RepositorioConductor {
@@ -76,53 +70,14 @@ class RepositorioConductorApi implements RepositorioConductor {
     );
     return ParadaConductor.fromJson(respuesta.data as Map<String, dynamic>);
   }
-
-  @override
-  Future<void> crearReporte({
-    required double latitud,
-    required double longitud,
-    required String descripcion,
-  }) async {
-    await _dio.post(
-      '/reportes',
-      data: {
-        'latitud': latitud,
-        'longitud': longitud,
-        'descripcion': descripcion,
-      },
-    );
-  }
-}
-
-class ReporteConductorMock {
-  const ReporteConductorMock({
-    required this.latitud,
-    required this.longitud,
-    required this.descripcion,
-  });
-
-  // EJEMPLO: reemplazar por API
-  final double latitud;
-
-  // EJEMPLO: reemplazar por API
-  final double longitud;
-
-  // EJEMPLO: reemplazar por API
-  final String descripcion;
 }
 
 /// Repositorio en memoria para probar los flujos del conductor sin backend.
 class RepositorioConductorMock implements RepositorioConductor {
-  RepositorioConductorMock() : _rutas = _crearRutasEjemplo(), _reportes = [];
+  RepositorioConductorMock() : _rutas = _crearRutasEjemplo();
 
   // EJEMPLO: reemplazar por API
   final List<RutaConductor> _rutas;
-
-  // EJEMPLO: reemplazar por API
-  final List<ReporteConductorMock> _reportes;
-
-  List<ReporteConductorMock> get reportes =>
-      List<ReporteConductorMock>.unmodifiable(_reportes);
 
   @override
   Future<List<RutaConductor>> misRutas() async =>
@@ -158,24 +113,6 @@ class RepositorioConductorMock implements RepositorioConductor {
     final paradas = [...ruta.paradas]..[indice] = actualizada;
     _reemplazarRuta(_copiarRuta(ruta, paradas: paradas));
     return actualizada;
-  }
-
-  @override
-  Future<void> crearReporte({
-    required double latitud,
-    required double longitud,
-    required String descripcion,
-  }) async {
-    _reportes.add(
-      ReporteConductorMock(
-        // EJEMPLO: reemplazar por API
-        latitud: latitud,
-        // EJEMPLO: reemplazar por API
-        longitud: longitud,
-        // EJEMPLO: reemplazar por API
-        descripcion: descripcion,
-      ),
-    );
   }
 
   RutaConductor _rutaPorId(int id) => _rutas.firstWhere(

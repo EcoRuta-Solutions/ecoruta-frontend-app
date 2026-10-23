@@ -4,7 +4,6 @@ enum DestinoMunicipalidad { panel, mapa, alertas, rutas, mas }
 
 enum OpcionMasMunicipalidad {
   contenedores,
-  reportesCiudadanos,
   usuariosYFlota,
   informes,
 }

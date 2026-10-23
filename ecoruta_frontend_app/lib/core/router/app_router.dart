@@ -4,12 +4,12 @@ import 'package:go_router/go_router.dart';
 
 import '../../features/auth/presentation/auth_controller.dart';
 import '../../features/auth/presentation/pantalla_login.dart';
-import '../../features/ciudadano/pantalla_inicio_ciudadano.dart';
 import '../../features/conductor/pantalla_inicio_conductor.dart';
 import '../../features/conductor/presentation/pantalla_detalle_ruta.dart';
 import '../../features/municipalidad/pantalla_inicio_municipalidad.dart';
 
 /// Dice a qué pantalla va cada rol al iniciar sesión.
+/// Un rol sin acceso vuelve al login (AuthController ya cierra su sesión).
 String rutaInicioPorRol(String rol) {
   switch (rol) {
     case 'municipalidad':
@@ -17,7 +17,7 @@ String rutaInicioPorRol(String rol) {
     case 'conductor':
       return '/conductor';
     default:
-      return '/ciudadano';
+      return '/login';
   }
 }
 
@@ -56,10 +56,6 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/login',
         builder: (_, _) => const PantallaLogin(),
-      ),
-      GoRoute(
-        path: '/ciudadano',
-        builder: (_, _) => const PantallaInicioCiudadano(),
       ),
       GoRoute(
         path: '/municipalidad',

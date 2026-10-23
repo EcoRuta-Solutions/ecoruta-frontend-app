@@ -1,6 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-enum DestinoConductor { miRuta, mapa, reportar, mas }
+enum DestinoConductor { miRuta, mapa, mas }
 
 class NavegacionConductor {
   const NavegacionConductor({this.destino = DestinoConductor.miRuta});
