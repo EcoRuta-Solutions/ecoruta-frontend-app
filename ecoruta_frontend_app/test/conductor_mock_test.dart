@@ -94,18 +94,6 @@ void main() {
         isFalse,
       );
     });
-
-    test('añade los reportes enviados a la lista en memoria', () async {
-      await repositorio.crearReporte(
-        latitud: -8.1116,
-        longitud: -79.0288,
-        descripcion: 'Contenedor desbordado',
-      );
-
-      expect(repositorio.reportes, hasLength(1));
-      expect(repositorio.reportes.single.descripcion, 'Contenedor desbordado');
-      expect(repositorio.reportes.single.latitud, -8.1116);
-    });
   });
 
   test('el provider selecciona mock o API según AppConfig', () {
@@ -347,17 +335,6 @@ class _RepositorioFallaPrimeraCarga implements RepositorioConductor {
     int paradaId,
     bool recolectado,
   ) => _repositorio.marcarParada(rutaId, paradaId, recolectado);
-
-  @override
-  Future<void> crearReporte({
-    required double latitud,
-    required double longitud,
-    required String descripcion,
-  }) => _repositorio.crearReporte(
-    latitud: latitud,
-    longitud: longitud,
-    descripcion: descripcion,
-  );
 }
 
 class _AuthControllerFalso extends AuthController {

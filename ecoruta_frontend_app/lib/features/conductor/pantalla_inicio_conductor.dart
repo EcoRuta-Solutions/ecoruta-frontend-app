@@ -9,7 +9,6 @@ import 'presentation/navegacion_conductor_controller.dart';
 import 'presentation/pantalla_mapa_conductor.dart';
 import 'presentation/pantalla_mas_conductor.dart';
 import 'presentation/pantalla_mi_ruta.dart';
-import 'presentation/pantalla_reportar.dart';
 
 class PantallaInicioConductor extends ConsumerWidget {
   const PantallaInicioConductor({super.key});
@@ -20,13 +19,11 @@ class PantallaInicioConductor extends ConsumerWidget {
     final pantalla = switch (destino) {
       DestinoConductor.miRuta => const PantallaMiRuta(),
       DestinoConductor.mapa => const PantallaMapaConductor(),
-      DestinoConductor.reportar => const PantallaReportar(),
       DestinoConductor.mas => const PantallaMasConductor(),
     };
     final titulo = switch (destino) {
       DestinoConductor.miRuta => 'Mi ruta',
       DestinoConductor.mapa => 'Mapa de ruta',
-      DestinoConductor.reportar => 'Reportar',
       DestinoConductor.mas => 'Mi perfil',
     };
 
@@ -77,11 +74,6 @@ class PantallaInicioConductor extends ConsumerWidget {
             icon: Icon(Icons.map_outlined),
             selectedIcon: Icon(Icons.map_rounded),
             label: 'Mapa',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.campaign_outlined),
-            selectedIcon: Icon(Icons.campaign_rounded),
-            label: 'Reportar',
           ),
           NavigationDestination(
             icon: Icon(Icons.person_outline_rounded),
