@@ -652,7 +652,7 @@ void main() {
       await tester.pump(duracionTemblorError);
     });
 
-    testWidgets('pantalla alta: el contenido queda centrado en vertical', (
+    testWidgets('pantalla alta: el espacio sobrante se reparte 40 % / 60 %', (
       tester,
     ) async {
       await _abrirApp(tester, tamano: const Size(390, 1400));
@@ -661,11 +661,14 @@ void main() {
       final abajo = tester
           .getBottomLeft(find.widgetWithText(FilledButton, 'Ingresar'))
           .dy;
-      final centroContenido = (arriba + abajo) / 2;
-      // Centro del área útil: entre el margen de 56 arriba y el de 32 abajo.
-      const centroArea = 56 + (1400 - 56 - 32) / 2;
-      expect(centroContenido, closeTo(centroArea, 1));
-      expect(arriba, greaterThan(56 + 100));
+      // Área útil: entre el margen de 56 arriba y el de 32 abajo.
+      final sobranteArriba = arriba - 56;
+      final sobranteAbajo = (1400 - 32) - abajo;
+      expect(sobranteArriba, greaterThan(100));
+      expect(
+        sobranteArriba / (sobranteArriba + sobranteAbajo),
+        closeTo(0.4, 0.005),
+      );
     });
 
     testWidgets('pantalla baja o con teclado: se desplaza hasta el botón', (

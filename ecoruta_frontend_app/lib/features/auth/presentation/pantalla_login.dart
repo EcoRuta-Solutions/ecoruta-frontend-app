@@ -190,7 +190,8 @@ class _PantallaLoginState extends ConsumerState<PantallaLogin>
       body: DefaultTextStyle.merge(
         style: const TextStyle(fontFamily: _Login.fuente, color: _Login.texto),
         child: SafeArea(
-          // Con espacio de sobra el contenido queda centrado en vertical;
+          // Con espacio de sobra, el sobrante se reparte 40 % arriba y 60 %
+          // abajo (el contenido queda un poco por encima del centro);
           // si no cabe (pantalla baja o teclado abierto) se desplaza.
           child: LayoutBuilder(
             builder: (context, viewport) => SingleChildScrollView(
@@ -200,7 +201,9 @@ class _PantallaLoginState extends ConsumerState<PantallaLogin>
                 constraints: BoxConstraints(
                   minHeight: math.max(0, viewport.maxHeight - _margen.vertical),
                 ),
-                child: Center(
+                child: Align(
+                  // y = -0,2 deja (1 - 0,2) / 2 = 40 % del sobrante arriba.
+                  alignment: const Alignment(0, -0.2),
                   child: ConstrainedBox(
                     constraints: const BoxConstraints(
                       maxWidth: LogoEcoRuta.ancho,
