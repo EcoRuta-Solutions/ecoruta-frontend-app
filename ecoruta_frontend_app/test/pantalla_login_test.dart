@@ -107,6 +107,7 @@ Future<_Entorno> _abrirApp(
   WidgetTester tester, {
   String rol = 'municipalidad',
   String? tokenGuardado,
+  Size tamano = const Size(390, 844),
 }) async {
   final backend = _BackendFalso(rol: rol);
   final token = _TokenEnMemoria(tokenGuardado);
@@ -122,7 +123,7 @@ Future<_Entorno> _abrirApp(
   );
   addTearDown(container.dispose);
 
-  tester.view.physicalSize = const Size(390, 844);
+  tester.view.physicalSize = tamano;
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
 
@@ -169,13 +170,23 @@ Future<void> _dejarCargarInicio(WidgetTester tester) =>
 Finder _campo(String key) =>
     find.descendant(of: find.byKey(Key(key)), matching: find.byType(TextField));
 
-Color _colorBorde(WidgetTester tester, String key) {
-  final campo = tester.widget<TextField>(_campo(key));
-  final borde = campo.decoration!.enabledBorder! as OutlineInputBorder;
-  return borde.borderSide.color;
+/// Borde que muestra el campo (el destino de su transición animada).
+BorderSide _borde(WidgetTester tester, String key) {
+  final caja = tester.widget<AnimatedContainer>(
+    find.descendant(
+      of: find.byKey(Key(key)),
+      matching: find.byType(AnimatedContainer),
+    ),
+  );
+  final decoracion = caja.foregroundDecoration! as BoxDecoration;
+  return (decoracion.border! as Border).top;
 }
 
+Color _colorBorde(WidgetTester tester, String key) => _borde(tester, key).color;
+
 const _rojo = Color(0xFFB3261E);
+const _azul = Color(0xFF1F4E9C);
+const _gris = Color(0xFFB9C7B2);
 
 LogoEcoRuta _logo(WidgetTester tester) =>
     tester.widget<LogoEcoRuta>(find.byType(LogoEcoRuta));
@@ -511,6 +522,176 @@ void main() {
       expect(find.text(mensajeRevisaDatos), findsOneWidget);
       expect(_logo(tester).giroRuedas, 0);
       _esperarCamionEnReposo(tester);
+    });
+  });
+
+  group('pulido visual', () {
+    testWidgets(
+      'textos de ayuda en gris claro, autofill y acciones del teclado',
+      (tester) async {
+        await _abrirApp(tester);
+
+        final correo = tester.widget<TextField>(_campo('login-correo'));
+        final clave = tester.widget<TextField>(_campo('login-clave'));
+
+        expect(correo.decoration!.hintText, 'nombre@correo.com');
+        expect(clave.decoration!.hintText, 'Tu contraseña');
+        for (final campo in [correo, clave]) {
+          expect(campo.decoration!.hintStyle!.color, const Color(0xFF9AA5AE));
+          expect(campo.style!.color, const Color(0xFF16233B));
+        }
+        expect(correo.autofillHints, [AutofillHints.email]);
+        expect(clave.autofillHints, [AutofillHints.password]);
+        expect(correo.textInputAction, TextInputAction.next);
+        expect(clave.textInputAction, TextInputAction.done);
+
+        // La ayuda desaparece al escribir.
+        await tester.enterText(find.byKey(const Key('login-correo')), 'a@b.pe');
+        await tester.pump(const Duration(milliseconds: 300));
+        double opacidad(String ayuda) => tester
+            .widget<AnimatedOpacity>(
+              find.ancestor(
+                of: find.text(ayuda),
+                matching: find.byType(AnimatedOpacity),
+              ),
+            )
+            .opacity;
+        expect(opacidad('nombre@correo.com'), 0);
+        expect(opacidad('Tu contraseña'), 1);
+      },
+    );
+
+    testWidgets('subtítulo bajo el título, sin enlaces ni pie', (tester) async {
+      await _abrirApp(tester);
+
+      final subtitulo = find.text('Gestión inteligente de residuos');
+      expect(subtitulo, findsOneWidget);
+      final texto = tester.widget<Text>(subtitulo);
+      expect(texto.style!.fontSize, 15);
+      expect(texto.style!.color, const Color(0xFF5B6B73));
+      expect(texto.textAlign, TextAlign.center);
+      expect(
+        tester.getTopLeft(subtitulo).dy,
+        greaterThan(tester.getBottomLeft(find.text('EcoRuta Trujillo')).dy),
+      );
+      expect(find.textContaining('Olvidaste'), findsNothing);
+    });
+
+    testWidgets('foco: borde azul de 1,5 px con transición de 150 ms', (
+      tester,
+    ) async {
+      await _abrirApp(tester);
+
+      expect(_borde(tester, 'login-correo'), const BorderSide(color: _gris));
+
+      await tester.tap(find.byKey(const Key('login-correo')));
+      await tester.pump();
+      expect(
+        _borde(tester, 'login-correo'),
+        const BorderSide(color: _azul, width: 1.5),
+      );
+      expect(_borde(tester, 'login-clave').color, _gris);
+      final caja = tester.widget<AnimatedContainer>(
+        find.descendant(
+          of: find.byKey(const Key('login-correo')),
+          matching: find.byType(AnimatedContainer),
+        ),
+      );
+      expect(caja.duration, const Duration(milliseconds: 150));
+
+      // El foco pasa a la contraseña y el correo vuelve a gris.
+      await tester.tap(find.byKey(const Key('login-clave')));
+      await tester.pump();
+      expect(_borde(tester, 'login-clave').color, _azul);
+      expect(_borde(tester, 'login-correo').color, _gris);
+      // El alto no cambia con el borde más grueso.
+      expect(tester.getSize(find.byKey(const Key('login-clave'))).height, 48);
+    });
+
+    testWidgets('con error, el borde rojo tiene prioridad sobre el foco', (
+      tester,
+    ) async {
+      await _abrirApp(tester);
+
+      await _ingresar(tester);
+      await tester.pump(duracionTemblorError);
+      await tester.tap(find.byKey(const Key('login-correo')));
+      await tester.pump();
+
+      expect(_borde(tester, 'login-correo').color, _rojo);
+      expect(_borde(tester, 'login-clave').color, _rojo);
+    });
+
+    testWidgets('"listo" en la contraseña envía el formulario', (tester) async {
+      final app = await _abrirApp(tester);
+
+      await _escribirCredenciales(tester);
+      await tester.showKeyboard(find.byKey(const Key('login-clave')));
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await _esperarBackend(tester);
+
+      expect(app.backend.rutasPedidas, ['/auth/login', '/auth/me']);
+      expect(find.text('Sesión iniciada'), findsOneWidget);
+      await tester.pump(duracionExitoLogin);
+      await tester.pump();
+      expect(app.ruta, '/municipalidad');
+      await _dejarCargarInicio(tester);
+    });
+
+    testWidgets('"listo" con campos vacíos: muestra el error y no llama', (
+      tester,
+    ) async {
+      final app = await _abrirApp(tester);
+
+      await tester.showKeyboard(find.byKey(const Key('login-clave')));
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pump();
+
+      expect(find.text(mensajeRevisaDatos), findsOneWidget);
+      expect(app.backend.rutasPedidas, isEmpty);
+      await tester.pump(duracionTemblorError);
+    });
+
+    testWidgets('pantalla alta: el contenido queda centrado en vertical', (
+      tester,
+    ) async {
+      await _abrirApp(tester, tamano: const Size(390, 1400));
+
+      final arriba = tester.getTopLeft(find.byType(LogoEcoRuta)).dy;
+      final abajo = tester
+          .getBottomLeft(find.widgetWithText(FilledButton, 'Ingresar'))
+          .dy;
+      final centroContenido = (arriba + abajo) / 2;
+      // Centro del área útil: entre el margen de 56 arriba y el de 32 abajo.
+      const centroArea = 56 + (1400 - 56 - 32) / 2;
+      expect(centroContenido, closeTo(centroArea, 1));
+      expect(arriba, greaterThan(56 + 100));
+    });
+
+    testWidgets('pantalla baja o con teclado: se desplaza hasta el botón', (
+      tester,
+    ) async {
+      tester.view.viewInsets = const FakeViewPadding(bottom: 300);
+      addTearDown(tester.view.resetViewInsets);
+      final app = await _abrirApp(tester, tamano: const Size(390, 600));
+
+      final desplazable = tester.state<ScrollableState>(
+        find.byType(Scrollable).first,
+      );
+      expect(desplazable.position.maxScrollExtent, greaterThan(0));
+
+      final boton = find.widgetWithText(FilledButton, 'Ingresar');
+      await tester.ensureVisible(boton);
+      await tester.pump();
+      expect(tester.getBottomLeft(boton).dy, lessThanOrEqualTo(600 - 300));
+
+      await _escribirCredenciales(tester);
+      await tester.ensureVisible(boton);
+      await _ingresar(tester);
+      expect(app.backend.rutasPedidas, contains('/auth/login'));
+      await tester.pump(duracionExitoLogin);
+      await tester.pump();
+      await _dejarCargarInicio(tester);
     });
   });
 }

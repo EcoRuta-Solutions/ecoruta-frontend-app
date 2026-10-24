@@ -15,6 +15,8 @@ class _Login {
   static const verde = Color(0xFF2E7D32);
   static const borde = Color(0xFFB9C7B2);
   static const error = Color(0xFFB3261E);
+  static const subtitulo = Color(0xFF5B6B73);
+  static const ayuda = Color(0xFF9AA5AE);
   static const fuente = 'Barlow';
   static const fuenteTitulo = 'BarlowCondensed';
 }
@@ -53,6 +55,9 @@ const vueltaRuedasCarga = Duration(milliseconds: 700);
 
 /// Cuánto tiembla el camión cuando aparece un error.
 const duracionTemblorError = Duration(milliseconds: 600);
+
+/// Transición del borde de un campo al enfocarlo o salir de él.
+const duracionFocoCampo = Duration(milliseconds: 150);
 
 class PantallaLogin extends ConsumerStatefulWidget {
   const PantallaLogin({super.key});
@@ -185,89 +190,116 @@ class _PantallaLoginState extends ConsumerState<PantallaLogin>
       body: DefaultTextStyle.merge(
         style: const TextStyle(fontFamily: _Login.fuente, color: _Login.texto),
         child: SafeArea(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(28, 56, 28, 32),
-            child: Center(
+          // Con espacio de sobra el contenido queda centrado en vertical;
+          // si no cabe (pantalla baja o teclado abierto) se desplaza.
+          child: LayoutBuilder(
+            builder: (context, viewport) => SingleChildScrollView(
+              padding: _margen,
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
               child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: LogoEcoRuta.ancho),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    AnimatedBuilder(
-                      animation: Listenable.merge([
-                        _animacion,
-                        _carga,
-                        _temblor,
-                      ]),
-                      builder: (_, _) => _logoAnimado(),
+                constraints: BoxConstraints(
+                  minHeight: math.max(0, viewport.maxHeight - _margen.vertical),
+                ),
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(
+                      maxWidth: LogoEcoRuta.ancho,
                     ),
-                    const SizedBox(height: 24),
-                    const _Titulo(),
-                    const SizedBox(height: 36),
-                    if (_exito)
-                      _Exito(
-                        rol: auth.user?.rol ?? '',
-                        aparicion: _aparicionCheck.animate(_animacion),
-                      )
-                    else ...[
-                      const _Etiqueta('Correo'),
-                      const SizedBox(height: 6),
-                      _Campo(
-                        key: const Key('login-correo'),
-                        controller: _correoCtrl,
-                        conError: error?.marcaCampos ?? false,
-                        keyboardType: TextInputType.emailAddress,
-                        textInputAction: TextInputAction.next,
-                        autofillHints: const [AutofillHints.email],
-                      ),
-                      const SizedBox(height: 16),
-                      const _Etiqueta('Contraseña'),
-                      const SizedBox(height: 6),
-                      _Campo(
-                        key: const Key('login-clave'),
-                        controller: _claveCtrl,
-                        conError: error?.marcaCampos ?? false,
-                        obscureText: _ocultarClave,
-                        textInputAction: TextInputAction.done,
-                        autofillHints: const [AutofillHints.password],
-                        onSubmitted: (_) {
-                          if (!auth.loading) _enviar();
-                        },
-                        sufijo: IconButton(
-                          tooltip: _ocultarClave
-                              ? 'Mostrar contraseña'
-                              : 'Ocultar contraseña',
-                          color: _Login.texto.withValues(alpha: 0.7),
-                          icon: Icon(
-                            _ocultarClave
-                                ? Icons.visibility_outlined
-                                : Icons.visibility_off_outlined,
-                          ),
-                          onPressed: () =>
-                              setState(() => _ocultarClave = !_ocultarClave),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        AnimatedBuilder(
+                          animation: Listenable.merge([
+                            _animacion,
+                            _carga,
+                            _temblor,
+                          ]),
+                          builder: (_, _) => _logoAnimado(),
                         ),
-                      ),
-                      if (error != null) ...[
-                        const SizedBox(height: 8),
-                        Semantics(
-                          liveRegion: true,
-                          child: Text(
-                            error.mensaje,
-                            style: const TextStyle(
-                              fontSize: 14,
-                              color: _Login.error,
+                        const SizedBox(height: 24),
+                        const _Titulo(),
+                        const SizedBox(height: 6),
+                        const Text(
+                          'Gestión inteligente de residuos',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontFamily: _Login.fuente,
+                            fontSize: 15,
+                            color: _Login.subtitulo,
+                          ),
+                        ),
+                        const SizedBox(height: 36),
+                        if (_exito)
+                          _Exito(
+                            rol: auth.user?.rol ?? '',
+                            aparicion: _aparicionCheck.animate(_animacion),
+                          )
+                        else ...[
+                          const _Etiqueta('Correo'),
+                          const SizedBox(height: 6),
+                          _Campo(
+                            key: const Key('login-correo'),
+                            controller: _correoCtrl,
+                            conError: error?.marcaCampos ?? false,
+                            ayuda: 'nombre@correo.com',
+                            keyboardType: TextInputType.emailAddress,
+                            textInputAction: TextInputAction.next,
+                            autofillHints: const [AutofillHints.email],
+                          ),
+                          const SizedBox(height: 16),
+                          const _Etiqueta('Contraseña'),
+                          const SizedBox(height: 6),
+                          _Campo(
+                            key: const Key('login-clave'),
+                            controller: _claveCtrl,
+                            conError: error?.marcaCampos ?? false,
+                            ayuda: 'Tu contraseña',
+                            obscureText: _ocultarClave,
+                            textInputAction: TextInputAction.done,
+                            // Al enfocarla, que el botón también quede a la vista.
+                            scrollPadding: const EdgeInsets.only(bottom: 120),
+                            autofillHints: const [AutofillHints.password],
+                            onSubmitted: (_) {
+                              if (!auth.loading) _enviar();
+                            },
+                            sufijo: IconButton(
+                              tooltip: _ocultarClave
+                                  ? 'Mostrar contraseña'
+                                  : 'Ocultar contraseña',
+                              color: _Login.texto.withValues(alpha: 0.7),
+                              icon: Icon(
+                                _ocultarClave
+                                    ? Icons.visibility_outlined
+                                    : Icons.visibility_off_outlined,
+                              ),
+                              onPressed: () => setState(
+                                () => _ocultarClave = !_ocultarClave,
+                              ),
                             ),
                           ),
-                        ),
-                        const SizedBox(height: 8),
-                      ] else
-                        const SizedBox(height: 24),
-                      _BotonIngresar(
-                        cargando: auth.loading,
-                        onPressed: _enviar,
-                      ),
-                    ],
-                  ],
+                          if (error != null) ...[
+                            const SizedBox(height: 8),
+                            Semantics(
+                              liveRegion: true,
+                              child: Text(
+                                error.mensaje,
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  color: _Login.error,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                          ] else
+                            const SizedBox(height: 24),
+                          _BotonIngresar(
+                            cargando: auth.loading,
+                            onPressed: _enviar,
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -277,6 +309,9 @@ class _PantallaLoginState extends ConsumerState<PantallaLogin>
     );
   }
 }
+
+/// Margen de la pantalla: 56 arriba, 28 a los lados y 32 abajo.
+const _margen = EdgeInsets.fromLTRB(28, 56, 28, 32);
 
 /// Primero aparece el check; luego el camión sale del logo hacia la derecha.
 final _aparicionCheck = CurveTween(
@@ -406,67 +441,114 @@ class _Etiqueta extends StatelessWidget {
   }
 }
 
-/// Campo de 48 px con borde gris, o rojo cuando hay error.
-class _Campo extends StatelessWidget {
+/// Campo de 48 px. El borde es gris, azul al enfocarlo y rojo cuando hay
+/// error (el rojo tiene prioridad sobre el foco). El cambio es animado.
+class _Campo extends StatefulWidget {
   final TextEditingController controller;
   final bool conError;
+  final String ayuda;
   final bool obscureText;
   final TextInputType? keyboardType;
   final TextInputAction? textInputAction;
   final Iterable<String>? autofillHints;
   final ValueChanged<String>? onSubmitted;
+  final EdgeInsets scrollPadding;
   final Widget? sufijo;
 
   const _Campo({
     super.key,
     required this.controller,
     required this.conError,
+    required this.ayuda,
     this.obscureText = false,
     this.keyboardType,
     this.textInputAction,
     this.autofillHints,
     this.onSubmitted,
+    this.scrollPadding = const EdgeInsets.all(20),
     this.sufijo,
   });
 
   @override
+  State<_Campo> createState() => _CampoState();
+}
+
+class _CampoState extends State<_Campo> {
+  final _foco = FocusNode();
+
+  @override
+  void initState() {
+    super.initState();
+    _foco.addListener(_alCambiarFoco);
+  }
+
+  @override
+  void dispose() {
+    _foco
+      ..removeListener(_alCambiarFoco)
+      ..dispose();
+    super.dispose();
+  }
+
+  void _alCambiarFoco() => setState(() {});
+
+  @override
   Widget build(BuildContext context) {
-    OutlineInputBorder borde(Color color, double grosor) => OutlineInputBorder(
-      borderRadius: BorderRadius.circular(12),
-      borderSide: BorderSide(color: color, width: grosor),
-    );
+    final borde = widget.conError
+        ? const BorderSide(color: _Login.error)
+        : _foco.hasFocus
+        ? const BorderSide(color: _Login.azul, width: 1.5)
+        : const BorderSide(color: _Login.borde);
 
-    final normal = conError ? _Login.error : _Login.borde;
-    final foco = conError ? _Login.error : _Login.azul;
-
-    return TextField(
-      controller: controller,
-      obscureText: obscureText,
-      keyboardType: keyboardType,
-      textInputAction: textInputAction,
-      autofillHints: autofillHints,
-      onSubmitted: onSubmitted,
-      autocorrect: false,
-      enableSuggestions: !obscureText,
-      cursorColor: _Login.azul,
-      style: const TextStyle(
-        fontFamily: _Login.fuente,
-        fontSize: 16,
-        height: 1.5,
-        color: _Login.texto,
+    // El borde va en foregroundDecoration (por dentro), así cambiar su
+    // grosor no mueve el texto ni cambia el alto del campo.
+    return AnimatedContainer(
+      duration: duracionFocoCampo,
+      curve: Curves.easeOut,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
       ),
-      decoration: InputDecoration(
-        filled: true,
-        fillColor: Colors.white,
-        // 12 + 24 (16 px × 1,5) + 12 = 48 px de alto.
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 14,
-          vertical: 12,
+      foregroundDecoration: BoxDecoration(
+        border: Border.fromBorderSide(borde),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: TextField(
+        controller: widget.controller,
+        focusNode: _foco,
+        obscureText: widget.obscureText,
+        keyboardType: widget.keyboardType,
+        textInputAction: widget.textInputAction,
+        autofillHints: widget.autofillHints,
+        onSubmitted: widget.onSubmitted,
+        scrollPadding: widget.scrollPadding,
+        autocorrect: false,
+        enableSuggestions: !widget.obscureText,
+        cursorColor: _Login.azul,
+        style: const TextStyle(
+          fontFamily: _Login.fuente,
+          fontSize: 16,
+          height: 1.5,
+          color: _Login.texto,
         ),
-        suffixIcon: sufijo,
-        border: borde(normal, 1),
-        enabledBorder: borde(normal, 1),
-        focusedBorder: borde(foco, 2),
+        decoration: InputDecoration(
+          hintText: widget.ayuda,
+          hintStyle: const TextStyle(
+            fontFamily: _Login.fuente,
+            fontSize: 16,
+            height: 1.5,
+            color: _Login.ayuda,
+          ),
+          // 12 + 24 (16 px × 1,5) + 12 = 48 px de alto.
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 14,
+            vertical: 12,
+          ),
+          border: InputBorder.none,
+          enabledBorder: InputBorder.none,
+          focusedBorder: InputBorder.none,
+          suffixIcon: widget.sufijo,
+        ),
       ),
     );
   }

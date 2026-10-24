@@ -113,6 +113,7 @@ const _celeste = Color(0xFFBFE3F7);
 const _naranja = Color(0xFFF28C28);
 const _oscuro = Color(0xFF16233B);
 const _gris = Color(0xFFB9C7B2);
+const _lineaCalle = Color(0xFFE8EEF4);
 
 /// Árbol, pasto y calle punteada.
 class _PintorEscena extends CustomPainter {
@@ -122,22 +123,29 @@ class _PintorEscena extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final pincel = Paint()..isAntiAlias = true;
 
-    // Calle: línea punteada de 245 x 9 en x=65, y=121.
-    pincel.color = _oscuro;
+    // Calle: franja oscura de 245 x 9 en x=65, y=121, con rayitas claras
+    // finas en el centro.
     const calle = Rect.fromLTWH(65, 121, 245, 9);
-    const trazo = 18.0;
-    const hueco = 10.0;
-    for (var x = calle.left; x < calle.right; x += trazo + hueco) {
-      final fin = (x + trazo).clamp(x, calle.right);
-      canvas.drawRRect(
-        RRect.fromLTRBR(
-          x,
-          calle.top,
-          fin,
-          calle.bottom,
-          Radius.circular(calle.height / 2),
-        ),
-        pincel,
+    pincel.color = _oscuro;
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(calle, const Radius.circular(2)),
+      pincel,
+    );
+    final raya = Paint()
+      ..color = _lineaCalle
+      ..strokeWidth = 1.5
+      ..strokeCap = StrokeCap.round;
+    const largoRaya = 9.0;
+    const huecoRaya = 8.0;
+    for (
+      var x = calle.left + huecoRaya;
+      x + largoRaya <= calle.right - huecoRaya;
+      x += largoRaya + huecoRaya
+    ) {
+      canvas.drawLine(
+        Offset(x, calle.center.dy),
+        Offset(x + largoRaya, calle.center.dy),
+        raya,
       );
     }
 
