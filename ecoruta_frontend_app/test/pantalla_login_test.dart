@@ -177,6 +177,38 @@ Color _colorBorde(WidgetTester tester, String key) {
 
 const _rojo = Color(0xFFB3261E);
 
+LogoEcoRuta _logo(WidgetTester tester) =>
+    tester.widget<LogoEcoRuta>(find.byType(LogoEcoRuta));
+
+/// El camión está quieto en su sitio: sin salir, sin temblor ni inclinación.
+void _esperarCamionEnReposo(WidgetTester tester) {
+  final logo = _logo(tester);
+  expect(logo.salidaCamion, 0);
+  expect(logo.desplazamientoCamion.dx, closeTo(0, 1e-9));
+  expect(logo.desplazamientoCamion.dy, closeTo(0, 1e-9));
+  expect(logo.inclinacionCamion, closeTo(0, 1e-9));
+}
+
+/// A mitad del temblor: ruedas girando y oscilación lateral de pocos píxeles,
+/// pero el camión no avanza.
+Future<void> _esperarTemblor(WidgetTester tester) async {
+  await tester.pump(const Duration(milliseconds: 150));
+  final antes = _logo(tester);
+  expect(antes.salidaCamion, 0);
+  expect(antes.desplazamientoCamion.dx.abs(), inInclusiveRange(1, 4));
+  expect(antes.inclinacionCamion, isNot(0));
+
+  await tester.pump(const Duration(milliseconds: 50));
+  expect(_logo(tester).giroRuedas, isNot(antes.giroRuedas));
+
+  // Pasados unos 0,6 s se detiene en su lugar.
+  await tester.pump(duracionTemblorError);
+  _esperarCamionEnReposo(tester);
+  final giroFinal = _logo(tester).giroRuedas;
+  await tester.pump(const Duration(milliseconds: 100));
+  expect(_logo(tester).giroRuedas, giroFinal);
+}
+
 void main() {
   testWidgets('estado normal: campos vacíos, botón Ingresar y sin pie demo', (
     tester,
@@ -356,4 +388,129 @@ void main() {
       await _dejarCargarInicio(tester);
     });
   }
+
+  group('animaciones del camión', () {
+    testWidgets(
+      'verificando: las ruedas giran y vibra sin moverse de su sitio',
+      (tester) async {
+        final app = await _abrirApp(tester);
+        app.backend
+          ..esperaLogin = Completer<void>()
+          ..errorLogin = 401;
+
+        await _escribirCredenciales(tester);
+        await _ingresar(tester);
+        expect(find.text('Verificando…'), findsOneWidget);
+
+        // Gira continuamente durante toda la verificación.
+        final giros = <double>[];
+        for (var i = 0; i < 6; i++) {
+          await tester.pump(const Duration(milliseconds: 230));
+          final logo = _logo(tester);
+          giros.add(logo.giroRuedas);
+          expect(logo.salidaCamion, 0);
+          expect(logo.desplazamientoCamion.dx, 0);
+          expect(logo.desplazamientoCamion.dy.abs(), lessThanOrEqualTo(1));
+          expect(logo.inclinacionCamion, 0);
+        }
+        expect(giros.toSet(), hasLength(giros.length));
+
+        app.backend.esperaLogin!.complete();
+        await _esperarBackend(tester);
+        await tester.pumpAndSettle();
+        expect(find.text(mensajeRevisaDatos), findsOneWidget);
+        _esperarCamionEnReposo(tester);
+      },
+    );
+
+    testWidgets('credenciales incorrectas: tiembla 0,6 s y se detiene', (
+      tester,
+    ) async {
+      final app = await _abrirApp(tester);
+      app.backend.errorLogin = 401;
+
+      await _escribirCredenciales(tester);
+      await _ingresar(tester);
+
+      expect(find.text(mensajeRevisaDatos), findsOneWidget);
+      await _esperarTemblor(tester);
+
+      // Con el error ya en pantalla, otro intento vuelve a hacerlo temblar.
+      await _ingresar(tester);
+      expect(find.text(mensajeRevisaDatos), findsOneWidget);
+      await _esperarTemblor(tester);
+      expect(
+        app.backend.rutasPedidas.where((r) => r == '/auth/login'),
+        hasLength(2),
+      );
+    });
+
+    testWidgets('campos vacíos: error y temblor en cada intento, sin backend', (
+      tester,
+    ) async {
+      final app = await _abrirApp(tester);
+
+      await _ingresar(tester);
+      expect(find.text(mensajeRevisaDatos), findsOneWidget);
+      expect(_colorBorde(tester, 'login-correo'), _rojo);
+      expect(_colorBorde(tester, 'login-clave'), _rojo);
+      await _esperarTemblor(tester);
+
+      await _ingresar(tester);
+      await _esperarTemblor(tester);
+      expect(app.backend.rutasPedidas, isEmpty);
+    });
+
+    testWidgets('rol no permitido: también tiembla', (tester) async {
+      await _abrirApp(tester, rol: 'ciudadano');
+
+      await _escribirCredenciales(tester);
+      await _ingresar(tester);
+
+      expect(find.text(mensajeSinAcceso), findsOneWidget);
+      await _esperarTemblor(tester);
+    });
+
+    testWidgets('reducir animaciones: sin giro ni temblor, solo el error', (
+      tester,
+    ) async {
+      tester.platformDispatcher.accessibilityFeaturesTestValue =
+          const FakeAccessibilityFeatures(disableAnimations: true);
+      addTearDown(
+        tester.platformDispatcher.clearAccessibilityFeaturesTestValue,
+      );
+      final app = await _abrirApp(tester);
+
+      // Verificando: las ruedas no giran.
+      app.backend
+        ..esperaLogin = Completer<void>()
+        ..errorLogin = 401;
+      await _escribirCredenciales(tester);
+      await _ingresar(tester);
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(find.text('Verificando…'), findsOneWidget);
+      expect(_logo(tester).giroRuedas, 0);
+      _esperarCamionEnReposo(tester);
+
+      // Error: borde rojo y texto, sin temblor.
+      app.backend.esperaLogin!.complete();
+      await _esperarBackend(tester);
+      for (var i = 0; i < 4; i++) {
+        await tester.pump(const Duration(milliseconds: 100));
+        expect(_logo(tester).giroRuedas, 0);
+        _esperarCamionEnReposo(tester);
+      }
+      expect(find.text(mensajeRevisaDatos), findsOneWidget);
+      expect(_colorBorde(tester, 'login-clave'), _rojo);
+
+      // Campos vacíos: igual, sin temblor.
+      await tester.enterText(find.byKey(const Key('login-correo')), '');
+      await tester.enterText(find.byKey(const Key('login-clave')), '');
+      await _ingresar(tester);
+      await tester.pump(const Duration(milliseconds: 150));
+      expect(find.text(mensajeRevisaDatos), findsOneWidget);
+      expect(_logo(tester).giroRuedas, 0);
+      _esperarCamionEnReposo(tester);
+    });
+  });
 }

@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 /// Logo de EcoRuta: un árbol a la izquierda y un camión de recolección
@@ -12,11 +14,24 @@ import 'package:flutter/material.dart';
 /// [salidaCamion] va de 0 (camión en su sitio) a 1 (camión fuera del logo,
 /// por la derecha). El árbol y la calle no se mueven.
 ///
+/// [giroRuedas] (en radianes), [desplazamientoCamion] y [inclinacionCamion]
+/// sirven para las animaciones de carga y error: mueven el camión unos pocos
+/// píxeles alrededor de su sitio, sin sacarlo de él.
+///
 /// Para cambiar el camión basta con reemplazar [CamionEcoRuta].
 class LogoEcoRuta extends StatelessWidget {
   final double salidaCamion;
+  final double giroRuedas;
+  final Offset desplazamientoCamion;
+  final double inclinacionCamion;
 
-  const LogoEcoRuta({super.key, this.salidaCamion = 0});
+  const LogoEcoRuta({
+    super.key,
+    this.salidaCamion = 0,
+    this.giroRuedas = 0,
+    this.desplazamientoCamion = Offset.zero,
+    this.inclinacionCamion = 0,
+  });
 
   /// Medidas del diseño; el logo se escala para ocupar el espacio que tenga.
   static const ancho = 334.0;
@@ -44,7 +59,15 @@ class LogoEcoRuta extends StatelessWidget {
                         CamionEcoRuta.origen.dx +
                         salidaCamion * (ancho - CamionEcoRuta.origen.dx),
                     top: CamionEcoRuta.origen.dy,
-                    child: const CamionEcoRuta(),
+                    child: Transform.translate(
+                      offset: desplazamientoCamion,
+                      child: Transform.rotate(
+                        angle: inclinacionCamion,
+                        // Se inclina apoyado en la calle.
+                        alignment: Alignment.bottomCenter,
+                        child: CamionEcoRuta(giroRuedas: giroRuedas),
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -58,7 +81,10 @@ class LogoEcoRuta extends StatelessWidget {
 
 /// Camión de recolección genérico de EcoRuta (ilustración propia).
 class CamionEcoRuta extends StatelessWidget {
-  const CamionEcoRuta({super.key});
+  /// Ángulo de las ruedas en radianes.
+  final double giroRuedas;
+
+  const CamionEcoRuta({super.key, this.giroRuedas = 0});
 
   /// Esquina superior izquierda del camión dentro del logo.
   static const origen = Offset(69, 31);
@@ -69,10 +95,10 @@ class CamionEcoRuta extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const SizedBox(
+    return SizedBox(
       width: ancho,
       height: alto,
-      child: CustomPaint(painter: _PintorCamion()),
+      child: CustomPaint(painter: _PintorCamion(giroRuedas)),
     );
   }
 }
@@ -143,7 +169,9 @@ class _PintorEscena extends CustomPainter {
 
 /// Camión: caja trasera, cabina, ventana, baliza y tres ruedas.
 class _PintorCamion extends CustomPainter {
-  const _PintorCamion();
+  final double giroRuedas;
+
+  const _PintorCamion(this.giroRuedas);
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -206,15 +234,29 @@ class _PintorCamion extends CustomPainter {
     );
 
     // Ruedas de 27 (parte inferior en y=118) con un centro de 10.
+    // Los rayos dejan ver el giro.
+    final rayo = Paint()
+      ..color = _gris
+      ..strokeWidth = 2
+      ..strokeCap = StrokeCap.round;
     for (final x in const [94.0, 143.0, 257.0]) {
       final centro = Offset(x + 13.5, 118 - 13.5);
       pincel.color = _oscuro;
       canvas.drawCircle(centro, 13.5, pincel);
+      for (var i = 0; i < 3; i++) {
+        final angulo = giroRuedas + i * math.pi * 2 / 3;
+        canvas.drawLine(
+          centro,
+          centro + Offset(math.cos(angulo), math.sin(angulo)) * 9.5,
+          rayo,
+        );
+      }
       pincel.color = _gris;
       canvas.drawCircle(centro, 5, pincel);
     }
   }
 
   @override
-  bool shouldRepaint(covariant _PintorCamion oldDelegate) => false;
+  bool shouldRepaint(covariant _PintorCamion oldDelegate) =>
+      oldDelegate.giroRuedas != giroRuedas;
 }

@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -46,6 +48,12 @@ const duracionExitoLogin = Duration(milliseconds: 1400);
 /// Pausa sin movimiento cuando el sistema pide reducir animaciones.
 const pausaExitoSinAnimacion = Duration(milliseconds: 800);
 
+/// Una vuelta de las ruedas mientras se verifica (se repite sin parar).
+const vueltaRuedasCarga = Duration(milliseconds: 700);
+
+/// Cuánto tiembla el camión cuando aparece un error.
+const duracionTemblorError = Duration(milliseconds: 600);
+
 class PantallaLogin extends ConsumerStatefulWidget {
   const PantallaLogin({super.key});
 
@@ -54,12 +62,20 @@ class PantallaLogin extends ConsumerStatefulWidget {
 }
 
 class _PantallaLoginState extends ConsumerState<PantallaLogin>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   final _correoCtrl = TextEditingController();
   final _claveCtrl = TextEditingController();
   late final _animacion = AnimationController(
     vsync: this,
     duration: duracionExitoLogin,
+  );
+  late final _carga = AnimationController(
+    vsync: this,
+    duration: vueltaRuedasCarga,
+  );
+  late final _temblor = AnimationController(
+    vsync: this,
+    duration: duracionTemblorError,
   );
   bool _ocultarClave = true;
 
@@ -74,14 +90,36 @@ class _PantallaLoginState extends ConsumerState<PantallaLogin>
     _correoCtrl.dispose();
     _claveCtrl.dispose();
     _animacion.dispose();
+    _carga.dispose();
+    _temblor.dispose();
     super.dispose();
+  }
+
+  bool get _sinAnimaciones => MediaQuery.disableAnimationsOf(context);
+
+  /// Ruedas rápidas y temblor lateral; vuelve a empezar en cada error.
+  void _temblar() {
+    if (_sinAnimaciones) return;
+    _temblor.forward(from: 0);
+  }
+
+  /// Ruedas girando y una vibración leve mientras se verifica.
+  void _animarCarga(bool cargando) {
+    if (cargando && !_sinAnimaciones) {
+      _carga.repeat();
+    } else {
+      _carga.reset();
+    }
   }
 
   void _enviar() {
     final correoValido = _correoCtrl.text.contains('@');
     final claveValida = _claveCtrl.text.isNotEmpty;
     setState(() => _faltanDatos = !correoValido || !claveValida);
-    if (_faltanDatos) return;
+    if (_faltanDatos) {
+      _temblar();
+      return;
+    }
     ref.read(celebrandoLoginProvider.notifier).iniciar();
     ref.read(authProvider.notifier).login(_correoCtrl.text, _claveCtrl.text);
   }
@@ -100,9 +138,35 @@ class _PantallaLoginState extends ConsumerState<PantallaLogin>
     celebrando.terminar();
   }
 
+  /// Combina las tres animaciones del camión: salida (éxito), ruedas y
+  /// vibración (carga) y temblor (error). Solo la salida lo saca de su sitio.
+  LogoEcoRuta _logoAnimado() {
+    final carga = _carga.value;
+    final temblor = _temblor.value;
+    // El temblor se apaga poco a poco y termina en reposo.
+    final onda = math.sin(temblor * math.pi * 2 * 5) * (1 - temblor);
+
+    return LogoEcoRuta(
+      salidaCamion: _salidaCamion.evaluate(_animacion),
+      giroRuedas: (carga + temblor * 3) * math.pi * 2,
+      desplazamientoCamion: Offset(
+        onda * 4,
+        math.sin(carga * math.pi * 2 * 4) * 0.8,
+      ),
+      inclinacionCamion: onda * 0.035,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    ref.listen(authProvider, (_, siguiente) {
+    ref.listen(authProvider, (anterior, siguiente) {
+      if (anterior?.loading != siguiente.loading) {
+        _animarCarga(siguiente.loading);
+      }
+      // Credenciales incorrectas o rol no permitido: los errores que
+      // marcan los campos en rojo también hacen temblar el camión.
+      if (_ErrorLogin.de(siguiente)?.marcaCampos ?? false) _temblar();
+
       if (!ref.read(celebrandoLoginProvider)) return;
       if (siguiente.status == AuthStatus.loggedIn) {
         _celebrar();
@@ -130,10 +194,12 @@ class _PantallaLoginState extends ConsumerState<PantallaLogin>
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     AnimatedBuilder(
-                      animation: _animacion,
-                      builder: (_, _) => LogoEcoRuta(
-                        salidaCamion: _salidaCamion.evaluate(_animacion),
-                      ),
+                      animation: Listenable.merge([
+                        _animacion,
+                        _carga,
+                        _temblor,
+                      ]),
+                      builder: (_, _) => _logoAnimado(),
                     ),
                     const SizedBox(height: 24),
                     const _Titulo(),
