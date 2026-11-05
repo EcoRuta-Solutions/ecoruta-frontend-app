@@ -8,6 +8,7 @@ class TarjetaMetrica extends StatelessWidget {
     required this.etiqueta,
     required this.valor,
     required this.estado,
+    this.visual,
     super.key,
   });
 
@@ -15,9 +16,14 @@ class TarjetaMetrica extends StatelessWidget {
   final int valor;
   final EstadoNodo estado;
 
+  /// Reemplaza el color e ícono que vendrían de [estado].
+  final EstadoVisual? visual;
+
   @override
   Widget build(BuildContext context) {
-    final visual = Theme.of(context).extension<ColoresEstado>()!.para(estado);
+    final visual =
+        this.visual ??
+        Theme.of(context).extension<ColoresEstado>()!.para(estado);
 
     return Card(
       child: Padding(

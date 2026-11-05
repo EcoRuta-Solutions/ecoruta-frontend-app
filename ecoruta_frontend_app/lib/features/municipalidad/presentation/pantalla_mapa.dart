@@ -7,19 +7,114 @@ import 'dart:math' as math;
 
 import '../../../core/theme/app_theme.dart';
 import '../data/modelos_panel.dart';
+import 'mapa_puntos_criticos.dart';
 import 'panel_controller.dart';
 import 'panel_utils.dart';
 import 'navegacion_controller.dart';
 import 'pantalla_detalle_contenedor.dart';
 import 'widgets/barra_llenado.dart';
 import 'widgets/chip_estado.dart';
+import 'widgets/aviso_datos_ejemplo.dart';
 import 'widgets/estados_panel.dart';
 
-class PantallaMapa extends ConsumerWidget {
+/// Capas del mapa municipal. Se muestran de a una porque ambas usan la misma
+/// escala de rojo/ámbar/verde y juntas se confundirían.
+enum CapaMapa { puntosCriticos, contenedores }
+
+class PantallaMapa extends ConsumerStatefulWidget {
   const PantallaMapa({super.key});
 
-  static const _centro = LatLng(-8.1116, -79.0288);
-  static const _idPaquete = 'com.ecoruta.app.ecoruta_frontend_app';
+  static const centro = LatLng(-8.1116, -79.0288);
+  static const idPaquete = 'com.ecoruta.app.ecoruta_frontend_app';
+
+  /// Espacio superior reservado para el selector de capa.
+  static const margenSelector = 64.0;
+
+  @override
+  ConsumerState<PantallaMapa> createState() => _PantallaMapaState();
+}
+
+class _PantallaMapaState extends ConsumerState<PantallaMapa> {
+  late CapaMapa _capa;
+
+  @override
+  void initState() {
+    super.initState();
+    // Si se llega desde "Ver en mapa" de un contenedor, abrir esa capa.
+    _capa = ref.read(navegacionMunicipalidadProvider).focoNodoId == null
+        ? CapaMapa.puntosCriticos
+        : CapaMapa.contenedores;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    ref.listen(navegacionMunicipalidadProvider, (anterior, siguiente) {
+      if (siguiente.focoNodoId != null &&
+          siguiente.focoNodoId != anterior?.focoNodoId) {
+        setState(() => _capa = CapaMapa.contenedores);
+      }
+    });
+
+    return Stack(
+      children: [
+        Positioned.fill(
+          child: switch (_capa) {
+            CapaMapa.puntosCriticos => const MapaPuntosCriticos(),
+            CapaMapa.contenedores => const _CapaContenedores(),
+          },
+        ),
+        SafeArea(
+          child: Align(
+            alignment: Alignment.topCenter,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
+              child: _SelectorCapa(
+                capa: _capa,
+                onCambiar: (capa) => setState(() => _capa = capa),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _SelectorCapa extends StatelessWidget {
+  const _SelectorCapa({required this.capa, required this.onCambiar});
+
+  final CapaMapa capa;
+  final ValueChanged<CapaMapa> onCambiar;
+
+  @override
+  Widget build(BuildContext context) => Card(
+    child: Padding(
+      padding: const EdgeInsets.all(4),
+      child: SegmentedButton<CapaMapa>(
+        showSelectedIcon: false,
+        segments: const [
+          ButtonSegment(
+            value: CapaMapa.puntosCriticos,
+            icon: Icon(Icons.place_outlined),
+            label: Text('Puntos críticos'),
+          ),
+          ButtonSegment(
+            value: CapaMapa.contenedores,
+            icon: Icon(Icons.science_outlined),
+            label: Text('Contenedores · demo'),
+          ),
+        ],
+        selected: {capa},
+        onSelectionChanged: (seleccion) => onCambiar(seleccion.single),
+      ),
+    ),
+  );
+}
+
+/// Capa de contenedores (nodos con sensores simulados). Es el mapa que ya
+/// existía; solo se rotula como demo.
+class _CapaContenedores extends ConsumerWidget {
+  const _CapaContenedores();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -125,7 +220,7 @@ class _MapaCargadoState extends ConsumerState<_MapaCargado>
         FlutterMap(
           mapController: _controladorMapa,
           options: MapOptions(
-            initialCenter: PantallaMapa._centro,
+            initialCenter: PantallaMapa.centro,
             initialZoom: 14,
             interactionOptions: const InteractionOptions(
               flags: InteractiveFlag.all,
@@ -136,7 +231,7 @@ class _MapaCargadoState extends ConsumerState<_MapaCargado>
           children: [
             TileLayer(
               urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-              userAgentPackageName: PantallaMapa._idPaquete,
+              userAgentPackageName: PantallaMapa.idPaquete,
               errorTileCallback: (_, error, _) {
                 debugPrint('No se pudo cargar una tesela del mapa: $error');
                 if (mounted && !_errorTeselas) {
@@ -177,7 +272,12 @@ class _MapaCargadoState extends ConsumerState<_MapaCargado>
           child: Align(
             alignment: Alignment.topLeft,
             child: Padding(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.fromLTRB(
+                12,
+                12 + PantallaMapa.margenSelector,
+                12,
+                12,
+              ),
               child: _FiltrosMapa(
                 estados: _estados,
                 zonas: zonas,
@@ -207,7 +307,12 @@ class _MapaCargadoState extends ConsumerState<_MapaCargado>
           child: Align(
             alignment: Alignment.topRight,
             child: Padding(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.fromLTRB(
+                12,
+                12 + PantallaMapa.margenSelector,
+                12,
+                12,
+              ),
               child: _ConteoMarcadores(cantidad: dibujables.length),
             ),
           ),
@@ -217,7 +322,11 @@ class _MapaCargadoState extends ConsumerState<_MapaCargado>
             child: Align(
               alignment: Alignment.topCenter,
               child: Padding(
-                padding: const EdgeInsets.only(top: 72, left: 16, right: 16),
+                padding: const EdgeInsets.only(
+                  top: 72 + PantallaMapa.margenSelector,
+                  left: 16,
+                  right: 16,
+                ),
                 child: Material(
                   color: EcoColors.primario,
                   borderRadius: BorderRadius.circular(12),
@@ -625,6 +734,7 @@ class _LeyendaMapa extends StatelessWidget {
           spacing: 16,
           runSpacing: 8,
           children: [
+            const AvisoDatosEjemplo(texto: 'Contenedores · datos de ejemplo'),
             for (final (estado, etiqueta) in estados)
               Row(
                 mainAxisSize: MainAxisSize.min,
