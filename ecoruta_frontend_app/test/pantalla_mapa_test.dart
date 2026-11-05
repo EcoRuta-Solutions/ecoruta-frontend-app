@@ -35,6 +35,11 @@ void main() {
     );
     await tester.pumpAndSettle();
 
+    // El mapa abre en la capa de puntos críticos; los nodos están en la capa
+    // de contenedores (demo).
+    await tester.tap(find.text('Contenedores · demo'));
+    await tester.pumpAndSettle();
+
     expect(find.text('8 contenedores'), findsOneWidget);
     await tester.tap(find.byTooltip('Mostrar filtros'));
     await tester.pumpAndSettle();

@@ -72,6 +72,17 @@ void main() {
       ),
     );
 
+    // Los bloques de puntos críticos y flota quedan arriba de la lista.
+    await tester.scrollUntilVisible(
+      find.text('No hay contenedores en este filtro'),
+      300,
+      scrollable: find
+          .descendant(
+            of: find.byType(CustomScrollView),
+            matching: find.byType(Scrollable),
+          )
+          .first,
+    );
     expect(find.text('No hay contenedores en este filtro'), findsOneWidget);
   });
 }

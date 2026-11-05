@@ -5,6 +5,9 @@ import '../../../core/theme/app_theme.dart';
 import '../data/modelos_panel.dart';
 import 'pantalla_detalle_contenedor.dart';
 import 'panel_controller.dart';
+import 'puntos_criticos_providers.dart';
+import 'widgets/aviso_datos_ejemplo.dart';
+import 'widgets/resumen_operativo.dart';
 import 'widgets/tarjeta_contenedor.dart';
 import 'widgets/tarjeta_metrica.dart';
 import 'widgets/estados_panel.dart';
@@ -24,7 +27,13 @@ class _PantallaPanelState extends ConsumerState<PantallaPanel> {
   @override
   Widget build(BuildContext context) {
     final panel = ref.watch(panelControllerProvider);
-    final onRefresh = ref.read(panelControllerProvider.notifier).recargar;
+    final recargarPanel = ref.read(panelControllerProvider.notifier).recargar;
+    Future<void> onRefresh() async {
+      ref
+        ..invalidate(resumenPuntosCriticosProvider)
+        ..invalidate(resumenFlotaProvider);
+      await recargarPanel();
+    }
 
     return panel.when(
       loading: () => _envolver(
@@ -44,6 +53,18 @@ class _PantallaPanelState extends ConsumerState<PantallaPanel> {
               padding: const EdgeInsets.only(bottom: 24),
               sliver: SliverToBoxAdapter(child: _encabezado()),
             ),
+            const SliverPadding(
+              padding: EdgeInsets.only(bottom: 24),
+              sliver: SliverToBoxAdapter(child: BloquePuntosCriticos()),
+            ),
+            const SliverPadding(
+              padding: EdgeInsets.only(bottom: 32),
+              sliver: SliverToBoxAdapter(child: BloqueFlota()),
+            ),
+            SliverPadding(
+              padding: const EdgeInsets.only(bottom: 16),
+              sliver: SliverToBoxAdapter(child: _tituloContenedores()),
+            ),
             SliverPadding(
               padding: const EdgeInsets.only(bottom: 24),
               sliver: SliverToBoxAdapter(child: _resumen(datos.resumen)),
@@ -56,8 +77,8 @@ class _PantallaPanelState extends ConsumerState<PantallaPanel> {
               child: Padding(
                 padding: const EdgeInsets.only(bottom: 16),
                 child: Text(
-                  'Contenedores',
-                  style: Theme.of(context).textTheme.titleLarge
+                  'Lista de contenedores',
+                  style: Theme.of(context).textTheme.titleMedium
                       ?.copyWith(color: EcoColors.texto),
                 ),
               ),
@@ -147,6 +168,23 @@ class _PantallaPanelState extends ConsumerState<PantallaPanel> {
             ],
           ),
         ),
+      ],
+    );
+  }
+
+  /// Los contenedores y su llenado vienen de sensores simulados.
+  Widget _tituloContenedores() {
+    return Wrap(
+      spacing: 12,
+      runSpacing: 8,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        Text(
+          'Contenedores',
+          style: Theme.of(context).textTheme.titleLarge
+              ?.copyWith(color: EcoColors.texto),
+        ),
+        const AvisoDatosEjemplo(),
       ],
     );
   }
