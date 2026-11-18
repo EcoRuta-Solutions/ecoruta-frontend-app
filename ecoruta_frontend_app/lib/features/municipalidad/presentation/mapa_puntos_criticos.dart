@@ -7,14 +7,24 @@ import '../../../core/config/app_config.dart';
 import '../../../core/navegacion/navegacion_externa.dart';
 import '../../../core/theme/app_theme.dart';
 import '../data/modelos_puntos_criticos.dart';
+import '../data/modelos_reportes_campo.dart';
+import 'hoja_reportar_llenado.dart';
 import 'pantalla_mapa.dart';
 import 'puntos_criticos_providers.dart';
+import 'reportes_campo_providers.dart';
 import 'widgets/aviso_datos_ejemplo.dart';
 import 'widgets/estados_panel.dart';
+import 'widgets/visual_llenado.dart';
 
 /// Capa del mapa municipal con los puntos críticos de acumulación.
 class MapaPuntosCriticos extends ConsumerWidget {
-  const MapaPuntosCriticos({super.key});
+  const MapaPuntosCriticos({
+    this.margenSuperior = PantallaMapa.margenSelector,
+    super.key,
+  });
+
+  /// Espacio reservado arriba (el selector de capa del mapa municipal).
+  final double margenSuperior;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -37,15 +47,20 @@ class MapaPuntosCriticos extends ConsumerWidget {
       ),
       error: (error, stackTrace) =>
           ErrorPanel(onRetry: () => ref.invalidate(puntosCriticosProvider)),
-      data: (lista) => _MapaPuntosCargado(puntos: lista),
+      data: (lista) =>
+          _MapaPuntosCargado(puntos: lista, margenSuperior: margenSuperior),
     );
   }
 }
 
 class _MapaPuntosCargado extends StatefulWidget {
-  const _MapaPuntosCargado({required this.puntos});
+  const _MapaPuntosCargado({
+    required this.puntos,
+    required this.margenSuperior,
+  });
 
   final List<PuntoCritico> puntos;
+  final double margenSuperior;
 
   @override
   State<_MapaPuntosCargado> createState() => _MapaPuntosCargadoState();
@@ -84,7 +99,6 @@ class _MapaPuntosCargadoState extends State<_MapaPuntosCargado> {
 
   @override
   Widget build(BuildContext context) {
-    final colores = Theme.of(context).extension<ColoresEstado>()!;
     final visibles = _visibles;
     final sinPuntos = widget.puntos.isEmpty;
 
@@ -132,15 +146,14 @@ class _MapaPuntosCargadoState extends State<_MapaPuntosCargado> {
             child: Align(
               alignment: Alignment.topCenter,
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(
+                padding: EdgeInsets.fromLTRB(
                   12,
-                  12 + PantallaMapa.margenSelector,
+                  12 + widget.margenSuperior,
                   12,
                   12,
                 ),
                 child: _FiltrosPuntos(
                   filtro: _filtro,
-                  colores: colores,
                   onCambiar: _cambiarFiltro,
                 ),
               ),
@@ -159,7 +172,11 @@ class _MapaPuntosCargadoState extends State<_MapaPuntosCargado> {
             child: Align(
               alignment: Alignment.topCenter,
               child: Padding(
-                padding: const EdgeInsets.only(top: 136, left: 16, right: 16),
+                padding: EdgeInsets.only(
+                  top: 72 + widget.margenSuperior,
+                  left: 16,
+                  right: 16,
+                ),
                 child: Material(
                   color: EcoColors.primario,
                   borderRadius: BorderRadius.circular(12),
@@ -181,7 +198,6 @@ class _MapaPuntosCargadoState extends State<_MapaPuntosCargado> {
               padding: const EdgeInsets.fromLTRB(12, 12, 12, 64),
               child: _LeyendaPuntos(
                 cantidad: visibles.length,
-                colores: colores,
               ),
             ),
           ),
@@ -284,16 +300,15 @@ class MarcadorPuntoCritico extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final visual = visualPuntoCritico(
-      Theme.of(context).extension<ColoresEstado>()!,
-      punto.categoria,
-    );
+    // El color es el del último reporte vigente; sin datos va en gris.
+    final visual = visualLlenado(context, punto.estadoLlenado);
 
     return Semantics(
       button: true,
       label:
           'Punto crítico ${punto.codigo}, '
-          '${nombreCategoriaPunto(punto.categoria)}',
+          '${nombreCategoriaPunto(punto.categoria)}, '
+          'llenado: ${punto.estadoLlenado.etiqueta}',
       child: Tooltip(
         message: '${punto.codigo} · ${punto.direccion}',
         child: Material(
@@ -330,12 +345,10 @@ class MarcadorPuntoCritico extends StatelessWidget {
 class _FiltrosPuntos extends StatelessWidget {
   const _FiltrosPuntos({
     required this.filtro,
-    required this.colores,
     required this.onCambiar,
   });
 
   final FiltroPuntosCriticos filtro;
-  final ColoresEstado colores;
   final ValueChanged<FiltroPuntosCriticos> onCambiar;
 
   @override
@@ -360,12 +373,8 @@ class _FiltrosPuntos extends StatelessWidget {
 
   Widget _chip(BuildContext context, FiltroPuntosCriticos opcion) {
     final seleccionado = opcion == filtro;
-    final color = switch (opcion) {
-      FiltroPuntosCriticos.todos => EcoColors.primario,
-      FiltroPuntosCriticos.prioritarios => colores.critico.color,
-      FiltroPuntosCriticos.potenciales => colores.alerta.color,
-      FiltroPuntosCriticos.recuperados => colores.normal.color,
-    };
+    // Neutro: los colores del mapa son los del nivel de llenado.
+    const color = EcoColors.primario;
     return ChoiceChip(
       label: Text(_nombreFiltro(opcion)),
       selected: seleccionado,
@@ -385,10 +394,9 @@ class _FiltrosPuntos extends StatelessWidget {
 }
 
 class _LeyendaPuntos extends StatelessWidget {
-  const _LeyendaPuntos({required this.cantidad, required this.colores});
+  const _LeyendaPuntos({required this.cantidad});
 
   final int cantidad;
-  final ColoresEstado colores;
 
   @override
   Widget build(BuildContext context) => Card(
@@ -414,18 +422,18 @@ class _LeyendaPuntos extends StatelessWidget {
             spacing: 16,
             runSpacing: 8,
             children: [
-              for (final categoria in CategoriaPuntoCritico.values)
+              for (final nivel in NivelLlenado.values)
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Icon(
-                      visualPuntoCritico(colores, categoria).icono,
+                      visualLlenado(context, nivel).icono,
                       size: 16,
-                      color: visualPuntoCritico(colores, categoria).color,
+                      color: visualLlenado(context, nivel).color,
                     ),
                     const SizedBox(width: 8),
                     Text(
-                      nombreCategoriaPunto(categoria),
+                      nivel.etiqueta,
                       style: Theme.of(context).textTheme.labelSmall
                           ?.copyWith(color: EcoColors.texto),
                     ),
@@ -546,6 +554,8 @@ class DetallePuntoCritico extends StatelessWidget {
                   titulo: 'Referencia',
                   valor: punto.referencia ?? 'Sin referencia',
                 ),
+                const SizedBox(height: 16),
+                SeccionLlenadoPunto(punto: punto),
                 const SizedBox(height: 24),
                 SizedBox(
                   width: double.infinity,
@@ -558,6 +568,18 @@ class DetallePuntoCritico extends StatelessWidget {
                       icon: const Icon(Icons.directions_rounded),
                       label: const Text('Cómo llegar'),
                     ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.tonalIcon(
+                    onPressed: () => mostrarHojaReportarLlenado(
+                      context,
+                      codigoPunto: punto.codigo,
+                    ),
+                    icon: const Icon(Icons.fact_check_outlined),
+                    label: const Text('Reportar llenado'),
                   ),
                 ),
               ],
@@ -613,4 +635,78 @@ class _Dato extends StatelessWidget {
       ),
     ],
   );
+}
+
+/// Llenado del punto: nivel del último reporte vigente (o "Sin datos"),
+/// fecha y hora, "hace X horas" y quién lo reportó.
+/// Muestra al instante lo que trae el punto y lo completa con
+/// GET /puntos-criticos/{codigo}/ultimo-reporte; se actualiza tras reportar.
+class SeccionLlenadoPunto extends ConsumerWidget {
+  const SeccionLlenadoPunto({required this.punto, super.key});
+
+  final PuntoCritico punto;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final consulta = ref.watch(ultimoReportePuntoProvider(punto.codigo));
+    final ahora = ref.watch(relojReportesProvider)();
+    final ultimo = consulta.asData?.value;
+    final textos = Theme.of(context).textTheme;
+    final secundario = textos.bodyMedium?.copyWith(
+      color: EcoColors.textoSecundario,
+    );
+
+    final nivel = ultimo?.estadoLlenado ?? punto.estadoLlenado;
+    final vigente = ultimo?.reporteVigente ?? punto.reporteVigente;
+    final reporte = ultimo?.reporte;
+    final fecha = reporte?.creadoEn ?? punto.ultimoReporte?.creadoEn;
+    final vigencia = ultimo?.vigenciaHoras;
+    final observacion = reporte?.observacion;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Text(
+              'Llenado',
+              style: textos.labelMedium?.copyWith(
+                color: EcoColors.textoSecundario,
+              ),
+            ),
+            if (consulta.isLoading) ...[
+              const SizedBox(width: 8),
+              const SizedBox.square(
+                dimension: 12,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            ],
+          ],
+        ),
+        const SizedBox(height: 8),
+        ChipLlenado(nivel: nivel),
+        const SizedBox(height: 8),
+        if (fecha == null)
+          Text('Aún no hay reportes de campo de este punto.', style: secundario)
+        else ...[
+          Text(
+            'Último reporte: ${fechaHoraReporte(fecha)} · '
+            '${haceCuanto(fecha, ahora)}',
+            style: secundario,
+          ),
+          if (!vigente)
+            Text(
+              vigencia == null
+                  ? 'Ya no está vigente.'
+                  : 'Ya no está vigente (más de ${horasVigencia(vigencia)}).',
+              style: secundario,
+            ),
+          if (reporte != null && reporte.usuarioNombre.isNotEmpty)
+            Text('Reportado por ${reporte.usuarioNombre}', style: secundario),
+          if (vigente && observacion != null)
+            Text('Observación: $observacion', style: secundario),
+        ],
+      ],
+    );
+  }
 }

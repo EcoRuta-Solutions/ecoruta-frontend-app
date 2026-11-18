@@ -4,6 +4,8 @@
 /// `PuntoCriticoOut` / `ResumenPuntosCriticos` del OpenAPI del backend.
 library;
 
+import 'modelos_reportes_campo.dart';
+
 enum EstadoPuntoCritico { potencial, recuperado, desconocido }
 
 /// Cómo se pinta un punto en el mapa. Un punto recuperado se muestra como
@@ -30,6 +32,9 @@ class PuntoCritico {
     this.referencia,
     this.latitud,
     this.longitud,
+    this.estadoLlenado = NivelLlenado.sinDatos,
+    this.reporteVigente = false,
+    this.ultimoReporte,
   });
 
   final int? id;
@@ -41,6 +46,13 @@ class PuntoCritico {
   final double? latitud;
   final double? longitud;
 
+  /// Nivel del último reporte vigente o [NivelLlenado.sinDatos].
+  final NivelLlenado estadoLlenado;
+  final bool reporteVigente;
+
+  /// Último reporte de campo, aunque ya no esté vigente.
+  final UltimoReporteBreve? ultimoReporte;
+
   factory PuntoCritico.fromJson(Map<String, dynamic> j) => PuntoCritico(
     id: (j['id'] as num?)?.toInt(),
     codigo: (j['codigo'] ?? j['codigo_unico'] ?? '').toString(),
@@ -50,6 +62,29 @@ class PuntoCritico {
     referencia: _textoONulo(j['referencia']),
     latitud: (j['lat'] as num?)?.toDouble(),
     longitud: (j['lon'] as num?)?.toDouble(),
+    estadoLlenado: NivelLlenado.desdeApi(j['estado_llenado']),
+    reporteVigente: (j['reporte_vigente'] as bool?) ?? false,
+    ultimoReporte: j['ultimo_reporte'] is Map<String, dynamic>
+        ? UltimoReporteBreve.fromJson(j['ultimo_reporte'] as Map<String, dynamic>)
+        : null,
+  );
+
+  PuntoCritico conLlenado({
+    required NivelLlenado estadoLlenado,
+    required bool reporteVigente,
+    required UltimoReporteBreve? ultimoReporte,
+  }) => PuntoCritico(
+    id: id,
+    codigo: codigo,
+    estado: estado,
+    priorizacionObligatoria: priorizacionObligatoria,
+    direccion: direccion,
+    referencia: referencia,
+    latitud: latitud,
+    longitud: longitud,
+    estadoLlenado: estadoLlenado,
+    reporteVigente: reporteVigente,
+    ultimoReporte: ultimoReporte,
   );
 
   /// Coordenadas válidas para dibujarlo en el mapa.

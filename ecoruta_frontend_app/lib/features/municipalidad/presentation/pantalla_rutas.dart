@@ -11,6 +11,7 @@ import '../data/modelos_ruta.dart';
 import '../data/repositorio_optimizacion.dart';
 import 'controladores_dominio.dart';
 import 'panel_controller.dart';
+import 'pantalla_zonas_ruta.dart';
 import 'widgets/estados_panel.dart';
 
 const _maximoAnchoRutas = 920.0;
@@ -810,10 +811,25 @@ class _AccionGenerarRuta extends ConsumerWidget {
     padding: const EdgeInsets.only(bottom: 16),
     child: Align(
       alignment: Alignment.centerLeft,
-      child: FilledButton.icon(
-        onPressed: () => _generarRutaOptima(context, ref),
-        icon: const Icon(Icons.auto_awesome_rounded),
-        label: const Text('Generar ruta óptima'),
+      child: Wrap(
+        spacing: 12,
+        runSpacing: 12,
+        children: [
+          FilledButton.icon(
+            onPressed: () => _generarRutaOptima(context, ref),
+            icon: const Icon(Icons.auto_awesome_rounded),
+            label: const Text('Generar ruta óptima'),
+          ),
+          OutlinedButton.icon(
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => const PantallaZonasRuta(),
+              ),
+            ),
+            icon: const Icon(Icons.map_outlined),
+            label: const Text('Rutas por zona'),
+          ),
+        ],
       ),
     ),
   );

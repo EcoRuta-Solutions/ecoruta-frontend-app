@@ -140,10 +140,17 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('la leyenda muestra las tres categorías', (tester) async {
+  testWidgets('la leyenda muestra los estados de llenado', (tester) async {
     await _mostrarMapa(tester, _RepositorioPuntosFalso(_puntos));
 
-    for (final etiqueta in ['Prioritario', 'Potencial', 'Recuperado']) {
+    // El color de los marcadores es el nivel de llenado reportado.
+    for (final etiqueta in [
+      'Vacío',
+      'Medio',
+      'Lleno',
+      'Desbordado',
+      'Sin datos',
+    ]) {
       expect(find.text(etiqueta), findsOneWidget);
     }
   });
