@@ -84,8 +84,10 @@ class _RepositorioFalso implements RepositorioZonasRuta {
   }
 
   @override
-  Future<ZonaRuta?> obtener(String codigo) async =>
-      zonas.where((zona) => zona.codigo == codigo).firstOrNull;
+  Future<List<ZonaRuta>> tramos(String codigo) async => [
+    for (final zona in zonas)
+      if (zona.codigo == codigo) zona,
+  ];
 }
 
 Future<_RepositorioFalso> _abrir(
@@ -194,7 +196,94 @@ void main() {
     });
   });
 
+  group('agrupación de tramos', () {
+    test('una ruta por código con todos sus tramos, en el orden recibido', () {
+      final filas = [
+        ZonaRuta.fromJson(_json(id: 1, codigo: 'M-1', tramo: 'Tramo A')),
+        ZonaRuta.fromJson(
+          _json(id: 2, codigo: 'M-1', tramo: 'Tramo B', revisar: true),
+        ),
+        ZonaRuta.fromJson(_json(id: 3, codigo: 'M-2', tramo: 'Tramo A')),
+      ];
+
+      final rutas = agruparPorCodigo(filas);
+
+      expect(rutas.map((r) => r.codigo), ['M-1', 'M-2']);
+      expect(rutas.first.tramos.map((t) => t.tramo), ['Tramo A', 'Tramo B']);
+      expect(rutas.first.revisar, isTrue);
+      expect(rutas.last.tramos, hasLength(1));
+      expect(rutas.last.revisar, isFalse);
+      expect(agruparPorCodigo(const []), isEmpty);
+    });
+
+    test('la ruta está activa si algún tramo lo está', () {
+      final ruta = agruparPorCodigo([
+        ZonaRuta.fromJson(_json(id: 1, codigo: 'N-1', turno: 'noche',
+            recojoInicio: '21:00:00', recojoFin: '23:00:00')),
+        ZonaRuta.fromJson(_json(id: 2, codigo: 'N-1', turno: 'noche',
+            recojoInicio: '23:00:00', recojoFin: '03:00:00',
+            cruzaMedianoche: true)),
+      ]).single;
+      expect(ruta.recogiendoA(DateTime(2026, 11, 18, 1)), isTrue);
+      expect(ruta.recogiendoA(DateTime(2026, 11, 18, 12)), isFalse);
+    });
+  });
+
   group('pantalla Rutas por zona', () {
+    testWidgets('cada ruta aparece una vez con sus tramos y su "Por verificar"', (
+      tester,
+    ) async {
+      await _abrir(
+        tester,
+        zonas: [
+          ZonaRuta.fromJson(_json(
+            id: 1,
+            codigo: 'M-1',
+            tramo: 'Tramo A',
+            sectores: 'Sector 1',
+          )),
+          ZonaRuta.fromJson(_json(
+            id: 2,
+            codigo: 'M-1',
+            tramo: 'Tramo B',
+            sectores: 'Sector 2',
+            recojoInicio: '09:00:00',
+            recojoFin: '11:00:00',
+            revisar: true,
+          )),
+          ZonaRuta.fromJson(_json(id: 3, codigo: 'M-2', tramo: 'Tramo único')),
+        ],
+      );
+
+      expect(find.byType(TarjetaZonaRuta), findsNWidgets(2));
+      expect(find.text('M-1'), findsOneWidget);
+      expect(find.text('2 tramos'), findsOneWidget);
+      expect(find.text('1 tramo'), findsOneWidget);
+
+      final m1 = find.ancestor(
+        of: find.text('M-1'),
+        matching: find.byType(TarjetaZonaRuta),
+      );
+      Finder enM1(String texto) =>
+          find.descendant(of: m1, matching: find.text(texto));
+      expect(enM1('Tramo A'), findsOneWidget);
+      expect(enM1('Tramo B'), findsOneWidget);
+      expect(enM1('Sector 1'), findsOneWidget);
+      expect(enM1('Sector 2'), findsOneWidget);
+      expect(enM1('05:00 – 09:00'), findsOneWidget);
+      expect(enM1('09:00 – 11:00'), findsOneWidget);
+      // Solo el tramo B está por verificar.
+      expect(find.text('Por verificar'), findsOneWidget);
+      final tramoB = find.ancestor(
+        of: find.text('Tramo B'),
+        matching: find.byType(Wrap),
+      ).first;
+      expect(
+        find.descendant(of: tramoB, matching: find.text('Por verificar')),
+        findsOneWidget,
+      );
+    });
+
     testWidgets('muestra los datos de la tarjeta', (tester) async {
       final repositorio = await _abrir(tester);
 

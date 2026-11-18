@@ -7,7 +7,6 @@ import 'modelos_flota.dart';
 import 'modelos_informe.dart';
 import 'modelos_lectura_nodo.dart';
 import 'modelos_panel.dart';
-import 'modelos_ruta.dart';
 import 'panel_mock.dart';
 import 'repositorios_api.dart';
 
@@ -268,99 +267,6 @@ class RepositorioAlertasMock implements RepositorioAlertas {
   }
 }
 
-abstract interface class RepositorioRutas {
-  Future<List<RutaMunicipal>> listar();
-  Future<void> guardar(RutaMunicipal ruta);
-  Future<void> aprobar(String id, {required String quien});
-  Future<void> reasignar(
-    String id, {
-    required Conductor conductor,
-    required Vehiculo vehiculo,
-    required String quien,
-  });
-}
-
-class RepositorioRutasMock implements RepositorioRutas {
-  final List<RutaMunicipal> _rutas = _rutasDemo.toList();
-
-  @override
-  Future<List<RutaMunicipal>> listar() async => List.unmodifiable(_rutas);
-
-  @override
-  Future<void> guardar(RutaMunicipal ruta) async {
-    final index = _rutas.indexWhere((actual) => actual.id == ruta.id);
-    if (index == -1) {
-      _rutas.add(ruta);
-    } else {
-      _rutas[index] = ruta;
-    }
-  }
-
-  @override
-  Future<void> aprobar(String id, {required String quien}) async {
-    final ruta = _porId(id);
-    if (ruta.estado != EstadoRuta.propuesta) {
-      throw StateError('Solo se pueden aprobar rutas propuestas.');
-    }
-    _actualizar(
-      ruta.copiar(
-        estado: EstadoRuta.aprobada,
-        historial: [
-          ...ruta.historial,
-          AccionRuta(que: 'Ruta aprobada', quien: quien, cuando: _fechaDemo),
-        ],
-      ),
-    );
-  }
-
-  @override
-  Future<void> reasignar(
-    String id, {
-    required Conductor conductor,
-    required Vehiculo vehiculo,
-    required String quien,
-  }) async {
-    if (conductor.estado != EstadoConductor.disponible) {
-      throw StateError('El conductor no está disponible.');
-    }
-    if (vehiculo.estado != EstadoVehiculo.operativo) {
-      throw StateError('El vehículo no está operativo.');
-    }
-    if (conductor.vehiculoAsignado != null &&
-        conductor.vehiculoAsignado != vehiculo.id) {
-      throw StateError('El vehículo no está asignado a este conductor.');
-    }
-    final ruta = _porId(id);
-    if (ruta.estado == EstadoRuta.completada) {
-      throw StateError('No se puede reasignar una ruta completada.');
-    }
-    _actualizar(
-      ruta.copiar(
-        conductorId: conductor.id,
-        vehiculoId: vehiculo.id,
-        historial: [
-          ...ruta.historial,
-          AccionRuta(
-            que: 'Asignada a ${conductor.nombre} · ${vehiculo.placa}',
-            quien: quien,
-            cuando: _fechaDemo,
-          ),
-        ],
-      ),
-    );
-  }
-
-  RutaMunicipal _porId(String id) => _rutas.firstWhere(
-    (ruta) => ruta.id == id,
-    orElse: () => throw StateError('No existe la ruta solicitada.'),
-  );
-
-  void _actualizar(RutaMunicipal ruta) {
-    final index = _rutas.indexWhere((actual) => actual.id == ruta.id);
-    _rutas[index] = ruta;
-  }
-}
-
 abstract interface class RepositorioFlota {
   Future<List<Conductor>> conductores();
   Future<List<Vehiculo>> vehiculos();
@@ -440,11 +346,6 @@ final repositorioContenedoresProvider = Provider<RepositorioContenedores>(
 );
 final repositorioAlertasProvider = Provider<RepositorioAlertas>(
   (ref) => RepositorioAlertasMock(),
-);
-final repositorioRutasProvider = Provider<RepositorioRutas>(
-  (ref) => AppConfig.usarDatosDeEjemplo
-      ? RepositorioRutasMock()
-      : RepositorioRutasApi(ref.read(dioProvider)),
 );
 final repositorioFlotaProvider = Provider<RepositorioFlota>(
   (ref) => AppConfig.usarDatosDeEjemplo
@@ -560,51 +461,6 @@ final _usuariosDemo = <UsuarioPanel>[
     correo: 'rosa.mendoza@ecoruta.pe',
     rol: RolPanel.supervisor,
     activo: true,
-  ),
-];
-
-final _rutasDemo = <RutaMunicipal>[
-  RutaMunicipal(
-    id: 'RUT-001',
-    nombre: 'Centro mañana',
-    zona: 'Centro',
-    estado: EstadoRuta.propuesta,
-    paradas: [
-      ParadaRuta(nodoId: 1, orden: 1, horaEstimada: DateTime(2026, 10, 8, 8)),
-      ParadaRuta(
-        nodoId: 2,
-        orden: 2,
-        horaEstimada: DateTime(2026, 10, 8, 8, 20),
-      ),
-    ],
-    distanciaKm: 18.4,
-    duracionMin: 76,
-    distanciaFijaKm: 22,
-    duracionFijaMin: 94,
-    paradasFijas: 8,
-    conductorId: 1,
-    vehiculoId: 1,
-  ),
-  RutaMunicipal(
-    id: 'RUT-002',
-    nombre: 'Víctor Larco tarde',
-    zona: 'Víctor Larco',
-    estado: EstadoRuta.enCurso,
-    paradas: [
-      ParadaRuta(nodoId: 3, orden: 1, horaEstimada: DateTime(2026, 10, 8, 15)),
-      ParadaRuta(
-        nodoId: 5,
-        orden: 2,
-        horaEstimada: DateTime(2026, 10, 8, 15, 30),
-      ),
-    ],
-    distanciaKm: 24.6,
-    duracionMin: 92,
-    distanciaFijaKm: 29,
-    duracionFijaMin: 115,
-    paradasFijas: 9,
-    conductorId: 2,
-    vehiculoId: 2,
   ),
 ];
 

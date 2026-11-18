@@ -142,3 +142,36 @@ class ZonaRuta {
     return minuto >= inicio && minuto < fin;
   }
 }
+
+/// Una ruta de SEGAT con todos sus tramos. GET /zonas-ruta devuelve una
+/// fila por tramo; aquí se juntan las del mismo código.
+class RutaZona {
+  const RutaZona({required this.codigo, required this.tramos});
+
+  final String codigo;
+
+  /// En el orden del backend (por código y tramo).
+  final List<ZonaRuta> tramos;
+
+  TurnoZona get turno => tramos.first.turno;
+
+  /// Algún tramo está pendiente de confirmación.
+  bool get revisar => tramos.any((tramo) => tramo.revisar);
+
+  /// Algún tramo está en su ventana de recojo a esta hora.
+  bool recogiendoA(DateTime ahora) =>
+      tramos.any((tramo) => tramo.recogiendoA(ahora));
+}
+
+/// Junta las filas por `codigo`, conservando el orden en que llegan: cada
+/// ruta aparece una sola vez, en la posición de su primer tramo.
+List<RutaZona> agruparPorCodigo(List<ZonaRuta> filas) {
+  final porCodigo = <String, List<ZonaRuta>>{};
+  for (final fila in filas) {
+    porCodigo.putIfAbsent(fila.codigo, () => []).add(fila);
+  }
+  return [
+    for (final entrada in porCodigo.entries)
+      RutaZona(codigo: entrada.key, tramos: entrada.value),
+  ];
+}
