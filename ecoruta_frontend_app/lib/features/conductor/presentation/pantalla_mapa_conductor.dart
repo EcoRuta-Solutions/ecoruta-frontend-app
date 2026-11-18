@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:latlong2/latlong.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../municipalidad/presentation/widgets/visual_llenado.dart';
 import '../data/modelos_conductor.dart';
 import 'accesibilidad_conductor.dart';
 import 'error_conductor.dart';
@@ -59,12 +60,15 @@ class _PantallaMapaConductorState extends ConsumerState<PantallaMapaConductor> {
         );
       },
       data: (lista) {
-        final ruta = rutaActivaDe(lista);
+        final ruta = rutaDeHoy(lista, ref.watch(relojConductorProvider)());
         if (ruta == null) {
-          return const Center(child: Text('No tienes una ruta activa'));
+          return const Center(
+            child: Text('Aún no tienes una ruta asignada para hoy'),
+          );
         }
+        // Ordenadas por `orden`, con la ubicación del punto crítico.
         final paradas = ruta.paradas
-            .where((parada) => parada.nodo != null)
+            .where((parada) => parada.tieneUbicacion)
             .toList();
         if (paradas.isEmpty) {
           return const Center(
@@ -74,13 +78,12 @@ class _PantallaMapaConductorState extends ConsumerState<PantallaMapaConductor> {
 
         final puntos = [
           for (final parada in paradas)
-            LatLng(parada.nodo!.latitud, parada.nodo!.longitud),
+            LatLng(parada.latitud!, parada.longitud!),
         ];
         final seleccionada = paradas.firstWhere(
           (parada) => parada.id == _paradaSeleccionadaId,
           orElse: () => paradas.first,
         );
-        final nodoSeleccionado = seleccionada.nodo!;
 
         return Stack(
           children: [
@@ -168,8 +171,7 @@ class _PantallaMapaConductorState extends ConsumerState<PantallaMapaConductor> {
               bottom: 16,
               child: _DetalleParadaSeleccionada(
                 parada: seleccionada,
-                nodo: nodoSeleccionado,
-                onComoLlegar: () => _comoLlegar(nodoSeleccionado),
+                onComoLlegar: () => _comoLlegar(seleccionada),
               ),
             ),
           ],
@@ -178,8 +180,8 @@ class _PantallaMapaConductorState extends ConsumerState<PantallaMapaConductor> {
     );
   }
 
-  Future<void> _comoLlegar(NodoConductor nodo) async {
-    final abierto = await abrirNavegacionExterna(nodo);
+  Future<void> _comoLlegar(ParadaConductor parada) async {
+    final abierto = await abrirNavegacionParada(parada);
     if (!mounted || abierto) return;
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
@@ -192,23 +194,15 @@ class _PantallaMapaConductorState extends ConsumerState<PantallaMapaConductor> {
 class _DetalleParadaSeleccionada extends StatelessWidget {
   const _DetalleParadaSeleccionada({
     required this.parada,
-    required this.nodo,
     required this.onComoLlegar,
   });
 
   final ParadaConductor parada;
-  final NodoConductor nodo;
   final VoidCallback onComoLlegar;
 
   @override
   Widget build(BuildContext context) {
-    final detalles = [
-      if (parada.horaEstimada != null)
-        'Hora estimada ${_hora(parada.horaEstimada!)}',
-      if (nodo.llenado != null) 'Llenado ${nodo.llenado!.round()}%',
-      if (nodo.prioridad != null) 'Prioridad ${nodo.prioridad}',
-    ];
-
+    final referencia = parada.puntoCritico?.referencia;
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(12),
@@ -220,15 +214,17 @@ class _DetalleParadaSeleccionada extends StatelessWidget {
               'Parada ${parada.orden}: ${parada.titulo}',
               style: Theme.of(context).textTheme.titleSmall,
             ),
-            if (detalles.isNotEmpty) ...[
+            if (referencia != null) ...[
               const SizedBox(height: 4),
-              Text(detalles.join(' · ')),
+              Text('Referencia: $referencia'),
             ],
+            const SizedBox(height: 8),
+            ChipLlenado(nivel: parada.estadoLlenado),
             const SizedBox(height: 8),
             SizedBox(
               width: double.infinity,
               child: semanticaBotonConductor(
-                etiqueta: 'Cómo llegar a ${nodo.nombre}',
+                etiqueta: 'Cómo llegar a ${parada.codigo}',
                 child: FilledButton.icon(
                   style: estiloBotonConductor,
                   onPressed: onComoLlegar,
@@ -243,7 +239,3 @@ class _DetalleParadaSeleccionada extends StatelessWidget {
     );
   }
 }
-
-String _hora(DateTime fecha) =>
-    '${fecha.hour.toString().padLeft(2, '0')}:'
-    '${fecha.minute.toString().padLeft(2, '0')}';

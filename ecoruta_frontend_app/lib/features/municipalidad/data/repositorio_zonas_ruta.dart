@@ -6,12 +6,13 @@ import '../../../core/network/api_client.dart';
 import 'modelos_zonas_ruta.dart';
 
 abstract interface class RepositorioZonasRuta {
-  /// Zonas de ruta, opcionalmente de un solo turno. El backend ya las
-  /// devuelve ordenadas por turno y código (M-2 antes que M-10).
+  /// Filas de GET /zonas-ruta (una por tramo), opcionalmente de un turno.
+  /// El backend ya las ordena por código y tramo.
   Future<List<ZonaRuta>> listar({TurnoZona? turno});
 
-  /// Una zona por su código, o null si no existe.
-  Future<ZonaRuta?> obtener(String codigo);
+  /// Todos los tramos de una ruta (GET /zonas-ruta/{codigo}); vacío si no
+  /// existe.
+  Future<List<ZonaRuta>> tramos(String codigo);
 }
 
 final repositorioZonasRutaProvider = Provider<RepositorioZonasRuta>(
@@ -39,14 +40,23 @@ class RepositorioZonasRutaApi implements RepositorioZonasRuta {
   }
 
   @override
-  Future<ZonaRuta?> obtener(String codigo) async {
+  Future<List<ZonaRuta>> tramos(String codigo) async {
     try {
       final respuesta = await _dio.get(
         '/zonas-ruta/${Uri.encodeComponent(codigo)}',
       );
-      return ZonaRuta.fromJson(respuesta.data as Map<String, dynamic>);
+      final datos = respuesta.data;
+      // Acepta la lista de tramos y también un solo objeto (versión
+      // anterior del backend).
+      return [
+        if (datos is List)
+          for (final fila in datos)
+            ZonaRuta.fromJson(fila as Map<String, dynamic>)
+        else
+          ZonaRuta.fromJson(datos as Map<String, dynamic>),
+      ];
     } on DioException catch (error) {
-      if (error.response?.statusCode == 404) return null;
+      if (error.response?.statusCode == 404) return const [];
       rethrow;
     }
   }
@@ -71,6 +81,19 @@ class RepositorioZonasRutaMock implements RepositorioZonasRuta {
       sacarBasuraFin: HoraDia(5, 0),
       cruzaMedianoche: false,
       revisar: false,
+    ),
+    ZonaRuta(
+      id: 5,
+      codigo: 'EJEMPLO-M1',
+      turno: TurnoZona.manana,
+      tramo: 'Tramo de ejemplo A2',
+      sectores: 'Sector de ejemplo 7',
+      recojoInicio: HoraDia(7, 0),
+      recojoFin: HoraDia(9, 0),
+      sacarBasuraInicio: HoraDia(6, 30),
+      sacarBasuraFin: HoraDia(7, 0),
+      cruzaMedianoche: false,
+      revisar: true,
     ),
     ZonaRuta(
       id: 2,
@@ -123,8 +146,11 @@ class RepositorioZonasRutaMock implements RepositorioZonasRuta {
   }
 
   @override
-  Future<ZonaRuta?> obtener(String codigo) async {
+  Future<List<ZonaRuta>> tramos(String codigo) async {
     await Future<void>.delayed(_latencia);
-    return zonas.where((zona) => zona.codigo == codigo).firstOrNull;
+    return [
+      for (final zona in zonas)
+        if (zona.codigo == codigo) zona,
+    ];
   }
 }

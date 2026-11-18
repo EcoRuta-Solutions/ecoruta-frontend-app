@@ -131,11 +131,13 @@ class _ListaZonas extends ConsumerWidget {
                     ),
                   )
                 else
-                  for (final zona in datos)
+                  // Una fila por tramo: cada ruta se muestra una sola vez.
+                  for (final ruta in agruparPorCodigo(datos))
                     TarjetaZonaRuta(
-                      key: ValueKey(zona.codigo),
-                      zona: zona,
-                      activa: resaltarActiva && zona.recogiendoA(ahora),
+                      key: ValueKey(ruta.codigo),
+                      ruta: ruta,
+                      ahora: ahora,
+                      resaltarActiva: resaltarActiva,
                     ),
               ],
             ),
@@ -149,21 +151,28 @@ class _ListaZonas extends ConsumerWidget {
       MediaQuery.sizeOf(context).width < EcoLayout.anchoCompacto ? 16 : 24;
 }
 
-/// Tarjeta de una zona: código, tramo, sectores, ventana de recojo y
-/// horario para sacar la basura.
+/// Tarjeta de una ruta: el código una vez y, debajo, cada tramo con sus
+/// sectores, ventana de recojo y horario para sacar la basura.
 class TarjetaZonaRuta extends StatelessWidget {
-  const TarjetaZonaRuta({required this.zona, required this.activa, super.key});
+  const TarjetaZonaRuta({
+    required this.ruta,
+    required this.ahora,
+    required this.resaltarActiva,
+    super.key,
+  });
 
-  final ZonaRuta zona;
+  final RutaZona ruta;
+  final DateTime ahora;
 
-  /// La ventana de recojo incluye la hora actual.
-  final bool activa;
+  /// Solo se resalta la zona activa para la municipalidad.
+  final bool resaltarActiva;
+
+  /// Algún tramo está en su ventana de recojo.
+  bool get activa => resaltarActiva && ruta.recogiendoA(ahora);
 
   @override
   Widget build(BuildContext context) {
     final texto = Theme.of(context).textTheme;
-    final tramo = zona.tramo;
-    final sectores = zona.sectores;
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
       child: Card(
@@ -178,57 +187,85 @@ class TarjetaZonaRuta extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                crossAxisAlignment: WrapCrossAlignment.center,
-                children: [
-                  Text(
-                    zona.codigo,
-                    style: texto.titleLarge?.copyWith(
-                      color: EcoColors.primario,
-                    ),
-                  ),
-                  if (activa) const _ChipRecogiendoAhora(),
-                  if (zona.revisar) const DistintivoPorVerificar(),
-                ],
+              Text(
+                ruta.codigo,
+                style: texto.titleLarge?.copyWith(color: EcoColors.primario),
               ),
-              if (tramo != null && tramo.isNotEmpty) ...[
-                const SizedBox(height: 8),
-                Text(
-                  tramo,
-                  style: texto.bodyMedium?.copyWith(
-                    color: EcoColors.textoSecundario,
-                  ),
+              Text(
+                ruta.tramos.length == 1
+                    ? '1 tramo'
+                    : '${ruta.tramos.length} tramos',
+                style: texto.bodySmall?.copyWith(
+                  color: EcoColors.textoSecundario,
+                ),
+              ),
+              for (var i = 0; i < ruta.tramos.length; i++) ...[
+                if (i > 0) const Divider(height: 24) else const SizedBox(height: 12),
+                _Tramo(
+                  zona: ruta.tramos[i],
+                  activo: resaltarActiva && ruta.tramos[i].recogiendoA(ahora),
                 ),
               ],
-              const SizedBox(height: 16),
-              if (sectores != null && sectores.isNotEmpty) ...[
-                _FilaDato(
-                  icono: Icons.place_outlined,
-                  etiqueta: 'Sectores',
-                  valor: sectores,
-                ),
-                const SizedBox(height: 12),
-              ],
-              _FilaDato(
-                icono: Icons.local_shipping_outlined,
-                etiqueta: 'Recojo',
-                valor: zona.ventanaRecojo,
-                extra: zona.ventanaCruzaMedianoche
-                    ? const _ChipCruzaMedianoche()
-                    : null,
-              ),
-              const SizedBox(height: 12),
-              _FilaDato(
-                icono: Icons.delete_outline_rounded,
-                etiqueta: 'Sacar la basura',
-                valor: zona.ventanaSacarBasura ?? 'Sin horario registrado',
-              ),
             ],
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Un tramo de la ruta, con su propio distintivo "Por verificar".
+class _Tramo extends StatelessWidget {
+  const _Tramo({required this.zona, required this.activo});
+
+  final ZonaRuta zona;
+  final bool activo;
+
+  @override
+  Widget build(BuildContext context) {
+    final texto = Theme.of(context).textTheme;
+    final tramo = zona.tramo;
+    final sectores = zona.sectores;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            Text(
+              (tramo == null || tramo.isEmpty) ? 'Tramo sin nombre' : tramo,
+              style: texto.titleSmall?.copyWith(color: EcoColors.texto),
+            ),
+            if (activo) const _ChipRecogiendoAhora(),
+            if (zona.revisar) const DistintivoPorVerificar(),
+          ],
+        ),
+        const SizedBox(height: 12),
+        if (sectores != null && sectores.isNotEmpty) ...[
+          _FilaDato(
+            icono: Icons.place_outlined,
+            etiqueta: 'Sectores',
+            valor: sectores,
+          ),
+          const SizedBox(height: 12),
+        ],
+        _FilaDato(
+          icono: Icons.local_shipping_outlined,
+          etiqueta: 'Recojo',
+          valor: zona.ventanaRecojo,
+          extra: zona.ventanaCruzaMedianoche
+              ? const _ChipCruzaMedianoche()
+              : null,
+        ),
+        const SizedBox(height: 12),
+        _FilaDato(
+          icono: Icons.delete_outline_rounded,
+          etiqueta: 'Sacar la basura',
+          valor: zona.ventanaSacarBasura ?? 'Sin horario registrado',
+        ),
+      ],
     );
   }
 }

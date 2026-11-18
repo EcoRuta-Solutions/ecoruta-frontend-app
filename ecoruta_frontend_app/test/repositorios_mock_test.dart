@@ -1,6 +1,5 @@
 import 'package:ecoruta_frontend_app/features/municipalidad/data/modelos_alerta.dart';
 import 'package:ecoruta_frontend_app/features/municipalidad/data/modelos_flota.dart';
-import 'package:ecoruta_frontend_app/features/municipalidad/data/modelos_ruta.dart';
 import 'package:ecoruta_frontend_app/features/municipalidad/data/panel_mock.dart';
 import 'package:ecoruta_frontend_app/features/municipalidad/data/repositorios_mock.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -123,81 +122,6 @@ void main() {
           throwsStateError,
         );
       },
-    );
-  });
-
-  test('calcula ahorro frente a la ruta fija equivalente', () {
-    const ruta = RutaMunicipal(
-      id: 'RUT-TEST',
-      nombre: 'Centro',
-      zona: 'Centro',
-      estado: EstadoRuta.propuesta,
-      paradas: [],
-      distanciaKm: 17,
-      duracionMin: 60,
-      distanciaFijaKm: 20,
-      duracionFijaMin: 75,
-      paradasFijas: 8,
-    );
-
-    expect(ruta.ahorroKmPorcentaje, 15);
-  });
-
-  test('aprueba rutas propuestas y registra el cambio', () async {
-    final repositorio = RepositorioRutasMock();
-    await repositorio.aprobar('RUT-001', quien: 'Ana Sánchez');
-    final ruta = (await repositorio.listar()).first;
-
-    expect(ruta.estado, EstadoRuta.aprobada);
-    expect(ruta.historial, hasLength(1));
-    expect(ruta.historial.single.quien, 'Ana Sánchez');
-  });
-
-  test('reasigna solo a conductor disponible y vehículo operativo', () async {
-    final repositorio = RepositorioRutasMock();
-    final antes = (await repositorio.listar()).first;
-
-    await repositorio.reasignar(
-      antes.id,
-      conductor: const Conductor(
-        id: 1,
-        nombre: 'Luis Rodríguez',
-        telefono: '944 123 456',
-        categoriaLicencia: 'A-IIb',
-        estado: EstadoConductor.disponible,
-        vehiculoAsignado: 1,
-      ),
-      vehiculo: const Vehiculo(
-        id: 1,
-        placa: 'TCA-241',
-        tipo: 'Compactador',
-        capacidadToneladas: 8,
-        estado: EstadoVehiculo.operativo,
-      ),
-      quien: 'Ana Sánchez',
-    );
-    expect((await repositorio.listar()).first.historial, hasLength(1));
-
-    await expectLater(
-      repositorio.reasignar(
-        antes.id,
-        conductor: const Conductor(
-          id: 3,
-          nombre: 'José Castillo',
-          telefono: '966 345 678',
-          categoriaLicencia: 'A-IIb',
-          estado: EstadoConductor.descanso,
-        ),
-        vehiculo: const Vehiculo(
-          id: 1,
-          placa: 'TCA-241',
-          tipo: 'Compactador',
-          capacidadToneladas: 8,
-          estado: EstadoVehiculo.operativo,
-        ),
-        quien: 'Ana Sánchez',
-      ),
-      throwsStateError,
     );
   });
 

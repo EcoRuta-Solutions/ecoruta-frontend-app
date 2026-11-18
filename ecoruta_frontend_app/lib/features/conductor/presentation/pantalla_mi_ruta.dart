@@ -8,6 +8,7 @@ import '../data/modelos_conductor.dart';
 import 'accesibilidad_conductor.dart';
 import 'error_conductor.dart';
 import 'mis_rutas_controller.dart';
+import 'tarjeta_parada_conductor.dart';
 
 const _maximoAnchoConductor = 920.0;
 
@@ -42,13 +43,13 @@ class PantallaMiRuta extends ConsumerWidget {
           );
         },
         data: (lista) {
-          if (lista.isEmpty) {
-            return const _Mensaje(
-              icono: Icons.local_shipping_outlined,
-              titulo: 'No tienes rutas asignadas',
-            );
-          }
-          final activa = rutaActivaDe(lista);
+          // GET /rutas/mias: el backend ya filtra las del conductor.
+          final hoy = ref.watch(relojConductorProvider)();
+          final activa = rutaDeHoy(lista, hoy);
+          final otras = [
+            for (final ruta in lista)
+              if (ruta.id != activa?.id) ruta,
+          ];
           return ListView(
             physics: const AlwaysScrollableScrollPhysics(),
             padding: EdgeInsets.symmetric(horizontal: margen, vertical: 24),
@@ -59,21 +60,74 @@ class PantallaMiRuta extends ConsumerWidget {
               const SizedBox(height: 24),
               _Encabezado(texto: 'Mi ruta de hoy'),
               const SizedBox(height: 12),
-              if (activa != null) _TarjetaActiva(ruta: activa),
-              const SizedBox(height: 28),
-              _Encabezado(texto: 'Todas mis rutas'),
-              const SizedBox(height: 12),
-              for (final ruta in lista)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 16),
-                  child: _TarjetaRuta(ruta: ruta),
-                ),
+              if (activa == null)
+                const _Ancho(
+                  child: Card(
+                    child: Padding(
+                      padding: EdgeInsets.all(24),
+                      child: Text(
+                        'Aún no tienes una ruta asignada para hoy',
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ),
+                )
+              else ...[
+                _TarjetaActiva(ruta: activa),
+                const SizedBox(height: 24),
+                _Encabezado(texto: 'Paradas (${activa.paradasTotal})'),
+                const SizedBox(height: 12),
+                if (activa.paradas.isEmpty)
+                  const _Ancho(
+                    child: Card(
+                      child: Padding(
+                        padding: EdgeInsets.all(20),
+                        child: Text('Esta ruta aún no tiene paradas.'),
+                      ),
+                    ),
+                  )
+                else
+                  for (final parada in activa.paradas)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: _Ancho(
+                        child: TarjetaParadaConductor(
+                          ruta: activa,
+                          parada: parada,
+                        ),
+                      ),
+                    ),
+              ],
+              if (otras.isNotEmpty) ...[
+                const SizedBox(height: 28),
+                _Encabezado(texto: 'Otras rutas'),
+                const SizedBox(height: 12),
+                for (final ruta in otras)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 16),
+                    child: _TarjetaRuta(ruta: ruta),
+                  ),
+              ],
             ],
           );
         },
       ),
     );
   }
+}
+
+class _Ancho extends StatelessWidget {
+  const _Ancho({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => Center(
+    child: ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: _maximoAnchoConductor),
+      child: child,
+    ),
+  );
 }
 
 class _Saludo extends StatelessWidget {
@@ -215,7 +269,7 @@ class _TarjetaActiva extends ConsumerWidget {
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              'Turno ${ruta.camion?.turno ?? '—'} · '
+                              'Turno ${ruta.turnoTexto} · '
                               '${_hora(ruta.horaInicio)} a ${_hora(ruta.horaFin)}',
                               style: Theme.of(context).textTheme.bodyMedium
                                   ?.copyWith(color: EcoColors.textoSecundario),
@@ -280,15 +334,15 @@ class _TarjetaActiva extends ConsumerWidget {
                       if (ruta.estado == EstadoRutaConductor.enProceso)
                         Expanded(
                           child: semanticaBotonConductor(
-                            etiqueta: 'Completar ruta',
+                            etiqueta: 'Finalizar ruta',
                             child: FilledButton.icon(
                               style: estiloBotonConductor,
                               onPressed: () => cambiar(
                                 EstadoRutaConductor.completado,
-                                'Ruta completada.',
+                                'Ruta finalizada.',
                               ),
                               icon: const Icon(Icons.check_rounded),
-                              label: const Text('Completar ruta'),
+                              label: const Text('Finalizar ruta'),
                             ),
                           ),
                         ),
@@ -391,8 +445,8 @@ class _TarjetaRuta extends StatelessWidget {
                   const SizedBox(height: 8),
                   Text(
                     ruta.camion == null
-                        ? 'Sin camión asignado'
-                        : '${ruta.camion!.placa} · Turno ${ruta.camion!.turno}',
+                        ? 'Sin camión asignado · Turno ${ruta.turnoTexto}'
+                        : '${ruta.camion!.placa} · Turno ${ruta.turnoTexto}',
                     style: Theme.of(context).textTheme.bodyMedium
                         ?.copyWith(color: EcoColors.textoSecundario),
                   ),

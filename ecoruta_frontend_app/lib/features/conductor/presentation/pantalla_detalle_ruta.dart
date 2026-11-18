@@ -7,6 +7,7 @@ import '../../../core/theme/app_theme.dart';
 import '../data/modelos_conductor.dart';
 import 'accesibilidad_conductor.dart';
 import 'mis_rutas_controller.dart';
+import 'tarjeta_parada_conductor.dart';
 
 const _centroTrujillo = LatLng(-8.1116, -79.0288);
 
@@ -109,10 +110,15 @@ class _ResumenRuta extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              ruta.camion == null
-                  ? 'Sin camión asignado'
-                  : 'Turno ${ruta.camion!.turno} · '
-                        'Capacidad ${ruta.camion!.capacidad} kg',
+              [
+                'Turno ${ruta.turnoTexto}',
+                if (ruta.distanciaKm != null)
+                  '${ruta.distanciaKm!.toStringAsFixed(1)} km',
+                if (ruta.tiempoEstimadoMin != null)
+                  '${ruta.tiempoEstimadoMin!.round()} min estimados',
+                if (ruta.metodoDistancia == metodoDistanciaAproximada)
+                  'distancias aproximadas',
+              ].join(' · '),
               style: Theme.of(context).textTheme.bodyMedium
                   ?.copyWith(color: EcoColors.textoSecundario),
             ),
@@ -149,12 +155,12 @@ class _MapaRuta extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final paradas = ruta.paradas.where((p) => p.nodo != null).toList();
+    // Ordenadas por `orden`; se dibujan con la ubicación del punto crítico.
+    final paradas = ruta.paradas.where((p) => p.tieneUbicacion).toList();
     if (paradas.isEmpty) return const SizedBox.shrink();
 
     final puntos = [
-      for (final parada in paradas)
-        LatLng(parada.nodo!.latitud, parada.nodo!.longitud),
+      for (final parada in paradas) LatLng(parada.latitud!, parada.longitud!),
     ];
 
     return Card(
@@ -196,7 +202,7 @@ class _MapaRuta extends StatelessWidget {
                           ? const Color(0xFF30A46C)
                           : EcoColors.primario,
                       child: Text(
-                        '${i + 1}',
+                        '${paradas[i].orden}',
                         style: const TextStyle(color: Colors.white),
                       ),
                     ),
@@ -216,53 +222,35 @@ class _ListaParadas extends ConsumerWidget {
   final RutaConductor ruta;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) => Card(
-    child: Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
+  Widget build(BuildContext context, WidgetRef ref) => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      Padding(
+        padding: const EdgeInsets.fromLTRB(4, 0, 4, 8),
+        child: Text(
+          'Paradas',
+          style: Theme.of(context).textTheme.titleMedium
+              ?.copyWith(color: EcoColors.primario),
+        ),
+      ),
+      if (ruta.paradas.isEmpty)
+        const Card(
+          child: Padding(
+            padding: EdgeInsets.all(16),
+            child: Text('Esta ruta aún no tiene paradas.'),
+          ),
+        )
+      else
+        for (final parada in ruta.paradas)
           Padding(
-            padding: const EdgeInsets.fromLTRB(12, 12, 12, 4),
-            child: Text(
-              'Paradas',
-              style: Theme.of(context).textTheme.titleMedium
-                  ?.copyWith(color: EcoColors.primario),
+            padding: const EdgeInsets.only(bottom: 12),
+            child: TarjetaParadaConductor(
+              ruta: ruta,
+              parada: parada,
+              alCambiar: () => ref.invalidate(detalleRutaProvider(ruta.id)),
             ),
           ),
-          if (ruta.paradas.isEmpty)
-            const Padding(
-              padding: EdgeInsets.all(12),
-              child: Text('Esta ruta aún no tiene paradas.'),
-            )
-          else
-            for (final parada in ruta.paradas)
-              CheckboxListTile(
-                value: parada.recolectado,
-                controlAffinity: ListTileControlAffinity.leading,
-                title: Text(parada.titulo),
-                subtitle: Text(
-                  [
-                    'Orden ${parada.orden}',
-                    if (parada.horaEstimada != null)
-                      'Hora estimada ${_hora(parada.horaEstimada!)}',
-                    if (parada.nodo?.llenado != null)
-                      'Llenado ${parada.nodo!.llenado!.round()}%',
-                    if (parada.nodo?.prioridad != null)
-                      'Prioridad ${parada.nodo!.prioridad}',
-                  ].join(' · '),
-                ),
-                onChanged: (valor) => _marcarParada(
-                  context,
-                  ref,
-                  ruta.id,
-                  parada,
-                  valor ?? false,
-                ),
-              ),
-        ],
-      ),
-    ),
+    ],
   );
 }
 
@@ -350,13 +338,13 @@ class _AccionesRuta extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           semanticaBotonConductor(
-            etiqueta: 'Completar ruta',
+            etiqueta: 'Finalizar ruta',
             child: FilledButton.icon(
               style: estiloBotonConductor,
               onPressed: () =>
-                  cambiar(EstadoRutaConductor.completado, 'Ruta completada.'),
+                  cambiar(EstadoRutaConductor.completado, 'Ruta finalizada.'),
               icon: const Icon(Icons.check_rounded),
-              label: const Text('Completar ruta'),
+              label: const Text('Finalizar ruta'),
             ),
           ),
           const SizedBox(height: 8),
@@ -396,25 +384,6 @@ class _Dato extends StatelessWidget {
       ),
     ],
   );
-}
-
-Future<void> _marcarParada(
-  BuildContext context,
-  WidgetRef ref,
-  int rutaId,
-  ParadaConductor parada,
-  bool recolectado,
-) async {
-  try {
-    await ref
-        .read(misRutasControllerProvider.notifier)
-        .marcarParada(rutaId, parada.id, recolectado);
-    ref.invalidate(detalleRutaProvider(rutaId));
-  } catch (_) {
-    if (context.mounted) {
-      _mostrarMensaje(context, 'No se pudo actualizar la parada.');
-    }
-  }
 }
 
 EstadoProcesoPanel _estadoProcesoConductor(EstadoRutaConductor estado) =>

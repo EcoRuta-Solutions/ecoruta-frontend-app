@@ -39,3 +39,8 @@ final detalleRutaProvider = FutureProvider.autoDispose
     .family<RutaConductor, int>(
       (ref, id) => ref.watch(repositorioConductorProvider).detalle(id),
     );
+
+/// Fecha y hora actual para elegir la ruta de hoy. Se sobrescribe en tests.
+final relojConductorProvider = Provider<DateTime Function()>(
+  (ref) => DateTime.now,
+);

@@ -10,7 +10,6 @@ import '../data/modelos_flota.dart';
 import '../data/modelos_informe.dart';
 import '../data/modelos_lectura_nodo.dart';
 import '../data/modelos_panel.dart';
-import '../data/modelos_ruta.dart';
 import '../data/repositorios_mock.dart';
 import 'panel_controller.dart';
 
@@ -149,42 +148,6 @@ class AlertasController extends AsyncNotifier<List<AlertaPanel>> {
   Future<void> atender(String id, {required String quien, String? nota}) async {
     await Future<void>.delayed(_latenciaAccion);
     await _repositorio.atender(id, quien: quien, nota: nota);
-    state = AsyncData(await _repositorio.listar());
-  }
-}
-
-final rutasControllerProvider =
-    AsyncNotifierProvider<RutasController, List<RutaMunicipal>>(
-      RutasController.new,
-      retry: (_, _) => null,
-    );
-
-class RutasController extends AsyncNotifier<List<RutaMunicipal>> {
-  RepositorioRutas get _repositorio => ref.read(repositorioRutasProvider);
-
-  @override
-  Future<List<RutaMunicipal>> build() =>
-      ref.watch(repositorioRutasProvider).listar();
-
-  Future<void> aprobar(String id, {required String quien}) async {
-    await Future<void>.delayed(_latenciaAccion);
-    await _repositorio.aprobar(id, quien: quien);
-    state = AsyncData(await _repositorio.listar());
-  }
-
-  Future<void> reasignar(
-    String id, {
-    required Conductor conductor,
-    required Vehiculo vehiculo,
-    required String quien,
-  }) async {
-    await Future<void>.delayed(_latenciaAccion);
-    await _repositorio.reasignar(
-      id,
-      conductor: conductor,
-      vehiculo: vehiculo,
-      quien: quien,
-    );
     state = AsyncData(await _repositorio.listar());
   }
 }

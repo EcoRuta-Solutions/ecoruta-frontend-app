@@ -1,12 +1,9 @@
-import 'dart:math' as math;
-
 import 'package:dio/dio.dart';
 
 import 'modelos_flota.dart';
 import 'modelos_informe.dart';
 import 'modelos_lectura_nodo.dart';
 import 'modelos_panel.dart';
-import 'modelos_ruta.dart';
 import 'panel_mock.dart';
 import 'repositorios_mock.dart';
 
@@ -277,70 +274,6 @@ class RepositorioFlotaApi implements RepositorioFlota {
   }
 }
 
-/// Rutas municipales contra el backend real (GET /rutas/mias, PATCH /rutas/{id}).
-class RepositorioRutasApi implements RepositorioRutas {
-  RepositorioRutasApi(this._dio);
-
-  final Dio _dio;
-
-  @override
-  Future<List<RutaMunicipal>> listar() async {
-    try {
-      final respuestas = await Future.wait([
-        _dio.get('/rutas/mias'),
-        _dio.get('/flota/conductores'),
-        _dio.get('/flota/vehiculos'),
-      ]);
-      final conductorPorUsuario = {
-        for (final item in (respuestas[1].data as List))
-          if ((item as Map<String, dynamic>)['usuario_id'] != null)
-            item['usuario_id'] as int: item['id'] as int,
-      };
-      final vehiculoPorPlaca = {
-        for (final item in (respuestas[2].data as List))
-          (item as Map<String, dynamic>)['placa'] as String: item['id'] as int,
-      };
-      return [
-        for (final item in (respuestas[0].data as List))
-          _rutaDesdeJson(
-            item as Map<String, dynamic>,
-            conductorPorUsuario: conductorPorUsuario,
-            vehiculoPorPlaca: vehiculoPorPlaca,
-          ),
-      ];
-    } on DioException catch (error) {
-      throw _errorApi(error, alternativo: 'No se pudieron cargar las rutas.');
-    }
-  }
-
-  @override
-  Future<void> guardar(RutaMunicipal ruta) async {
-    throw StateError('Las rutas se crean con "Generar ruta óptima".');
-  }
-
-  @override
-  Future<void> aprobar(String id, {required String quien}) async {
-    try {
-      await _dio.patch(
-        '/rutas/${_idNumerico(id)}',
-        data: {'estado': 'en_proceso'},
-      );
-    } on DioException catch (error) {
-      throw _errorApi(error, alternativo: 'No se pudo aprobar la ruta.');
-    }
-  }
-
-  @override
-  Future<void> reasignar(
-    String id, {
-    required Conductor conductor,
-    required Vehiculo vehiculo,
-    required String quien,
-  }) async {
-    throw StateError('La reasignación no está disponible con el backend real.');
-  }
-}
-
 /// Informes contra el backend real (GET /informes/resumen).
 class RepositorioInformesApi implements RepositorioInformes {
   RepositorioInformesApi(this._dio);
@@ -422,62 +355,6 @@ String _estadoConductorBackend(EstadoConductor estado) => switch (estado) {
   EstadoConductor.descanso => 'descanso',
 };
 
-RutaMunicipal _rutaDesdeJson(
-  Map<String, dynamic> j, {
-  Map<int, int> conductorPorUsuario = const {},
-  Map<String, int> vehiculoPorPlaca = const {},
-}) {
-  final camion = j['camion'] as Map<String, dynamic>?;
-  final horaInicio = DateTime.parse(j['hora_inicio'] as String);
-  final paradas = <ParadaRuta>[];
-  final coords = <({double lat, double lon})>[];
-  for (final item in (j['paradas'] as List? ?? const [])) {
-    final parada = item as Map<String, dynamic>;
-    final orden = parada['orden'] as int;
-    paradas.add(
-      ParadaRuta(
-        nodoId: parada['nodo_id'] as int,
-        orden: orden,
-        horaEstimada: horaInicio.add(Duration(minutes: 15 * (orden - 1))),
-      ),
-    );
-    final nodo = parada['nodo'] as Map<String, dynamic>?;
-    if (nodo != null) {
-      coords.add((
-        lat: (nodo['latitud'] as num).toDouble(),
-        lon: (nodo['longitud'] as num).toDouble(),
-      ));
-    }
-  }
-  paradas.sort((a, b) => a.orden.compareTo(b.orden));
-  final distancia = _distanciaRuta(coords);
-  final duracion = (distancia / 20 * 60 + paradas.length * 3).round();
-  final conductorUsuarioId = j['conductor_id'] as int?;
-  final placaCamion = camion?['placa'] as String?;
-  return RutaMunicipal(
-    id: 'RUT-${(j['id'] as int).toString().padLeft(3, '0')}',
-    nombre: camion == null ? 'Ruta ${j['id']}' : 'Ruta $placaCamion',
-    zona: (camion?['turno'] as String?) ?? 'Sin turno',
-    estado: switch (j['estado']) {
-      'en_proceso' => EstadoRuta.enCurso,
-      'Completado' || 'Cancelado' => EstadoRuta.completada,
-      _ => EstadoRuta.propuesta,
-    },
-    paradas: paradas,
-    distanciaKm: distancia,
-    duracionMin: duracion,
-    distanciaFijaKm: distancia * 1.3,
-    duracionFijaMin: (duracion * 1.25).round(),
-    paradasFijas: paradas.length + 3,
-    conductorId: conductorUsuarioId == null
-        ? null
-        : conductorPorUsuario[conductorUsuarioId] ?? conductorUsuarioId,
-    vehiculoId: placaCamion == null
-        ? j['camion_id'] as int?
-        : vehiculoPorPlaca[placaCamion] ?? j['camion_id'] as int?,
-  );
-}
-
 KpiInforme _kpiDesdeJson(Map<String, dynamic> j) => KpiInforme(
   clave: j['clave'] as String,
   nombre: j['nombre'] as String,
@@ -495,35 +372,8 @@ List<PuntoSerieInforme> _serieDesdeJson(List items) => [
     ),
 ];
 
-int _idNumerico(String id) =>
-    int.parse(id.replaceAll(RegExp(r'[^0-9]'), ''));
-
 String _fechaIso(DateTime fecha) =>
     '${fecha.year.toString().padLeft(4, '0')}-'
     '${fecha.month.toString().padLeft(2, '0')}-'
     '${fecha.day.toString().padLeft(2, '0')}';
 
-double _distanciaRuta(List<({double lat, double lon})> coords) {
-  var total = 0.0;
-  for (var i = 1; i < coords.length; i++) {
-    total += _haversineKm(coords[i - 1], coords[i]);
-  }
-  return double.parse(total.toStringAsFixed(2));
-}
-
-double _haversineKm(
-  ({double lat, double lon}) origen,
-  ({double lat, double lon}) destino,
-) {
-  const radioTierra = 6371.0088;
-  final dLat = _rad(destino.lat - origen.lat);
-  final dLon = _rad(destino.lon - origen.lon);
-  final a =
-      math.pow(math.sin(dLat / 2), 2) +
-      math.cos(_rad(origen.lat)) *
-          math.cos(_rad(destino.lat)) *
-          math.pow(math.sin(dLon / 2), 2);
-  return radioTierra * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a));
-}
-
-double _rad(double grados) => grados * math.pi / 180;
