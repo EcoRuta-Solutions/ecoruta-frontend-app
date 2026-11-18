@@ -6,6 +6,7 @@ import '../data/modelos_panel.dart';
 import 'pantalla_detalle_contenedor.dart';
 import 'panel_controller.dart';
 import 'puntos_criticos_providers.dart';
+import 'reportes_campo_providers.dart';
 import 'widgets/aviso_datos_ejemplo.dart';
 import 'widgets/resumen_operativo.dart';
 import 'widgets/tarjeta_contenedor.dart';
@@ -31,6 +32,7 @@ class _PantallaPanelState extends ConsumerState<PantallaPanel> {
     Future<void> onRefresh() async {
       ref
         ..invalidate(resumenPuntosCriticosProvider)
+        ..invalidate(resumenReportesProvider)
         ..invalidate(resumenFlotaProvider);
       await recargarPanel();
     }
@@ -56,6 +58,10 @@ class _PantallaPanelState extends ConsumerState<PantallaPanel> {
             const SliverPadding(
               padding: EdgeInsets.only(bottom: 24),
               sliver: SliverToBoxAdapter(child: BloquePuntosCriticos()),
+            ),
+            const SliverPadding(
+              padding: EdgeInsets.only(bottom: 24),
+              sliver: SliverToBoxAdapter(child: BloqueLlenadoReportado()),
             ),
             const SliverPadding(
               padding: EdgeInsets.only(bottom: 32),

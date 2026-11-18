@@ -6,6 +6,7 @@ import '../../auth/presentation/auth_controller.dart';
 import '../data/modelos_conductor.dart';
 import 'accesibilidad_conductor.dart';
 import 'mis_rutas_controller.dart';
+import 'pantalla_puntos_criticos_conductor.dart';
 
 class PantallaMasConductor extends ConsumerWidget {
   const PantallaMasConductor({super.key});
@@ -72,6 +73,25 @@ class PantallaMasConductor extends ConsumerWidget {
                   ),
                 ),
               ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
+        Card(
+          clipBehavior: Clip.antiAlias,
+          child: ListTile(
+            minTileHeight: 72,
+            leading: const Icon(
+              Icons.place_outlined,
+              color: EcoColors.primario,
+            ),
+            title: const Text('Puntos críticos'),
+            subtitle: const Text('Ver el mapa y reportar el llenado'),
+            trailing: const Icon(Icons.chevron_right_rounded),
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => const PantallaPuntosCriticosConductor(),
+              ),
             ),
           ),
         ),

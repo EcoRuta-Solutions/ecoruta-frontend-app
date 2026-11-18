@@ -66,5 +66,7 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>EcoRuta usa tu ubicación, si la permites, para indicar desde dónde se reportó el llenado de un punto crítico.</string>
 </dict>
 </plist>

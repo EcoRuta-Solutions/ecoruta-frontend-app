@@ -6,10 +6,13 @@ import '../../../../core/theme/app_theme.dart';
 import '../../data/modelos_flota.dart';
 import '../../data/modelos_panel.dart';
 import '../../data/modelos_puntos_criticos.dart';
+import '../../data/modelos_reportes_campo.dart';
 import '../puntos_criticos_providers.dart';
+import '../reportes_campo_providers.dart';
 import 'aviso_datos_ejemplo.dart';
 import 'estados_panel.dart';
 import 'tarjeta_metrica.dart';
+import 'visual_llenado.dart';
 
 /// Tarjetas con el resumen de GET /puntos-criticos/resumen.
 class BloquePuntosCriticos extends ConsumerWidget {
@@ -66,6 +69,63 @@ class _TarjetasPuntos extends StatelessWidget {
         etiqueta: 'Recuperados',
         valor: resumen.recuperados,
         estado: EstadoNodo.normal,
+      ),
+    ],
+  );
+}
+
+/// Puntos críticos por nivel de llenado según su último reporte vigente
+/// (GET /reportes-campo/resumen). Los que no tienen reporte vigente se
+/// cuentan como "Sin datos".
+class BloqueLlenadoReportado extends ConsumerWidget {
+  const BloqueLlenadoReportado({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final resumen = ref.watch(resumenReportesProvider);
+
+    return _Seccion(
+      titulo: 'Llenado reportado',
+      child: resumen.when(
+        loading: () => const _Cargando(),
+        error: (error, stackTrace) => _ErrorSeccion(
+          onRetry: () => ref.invalidate(resumenReportesProvider),
+        ),
+        data: (datos) => datos.totalPuntos == 0
+            ? const _Vacio(texto: 'No hay puntos críticos registrados')
+            : _DetalleLlenado(resumen: datos),
+      ),
+    );
+  }
+}
+
+class _DetalleLlenado extends StatelessWidget {
+  const _DetalleLlenado({required this.resumen});
+
+  final ResumenReportes resumen;
+
+  @override
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Text(
+        'Último reporte de las últimas ${horasVigencia(resumen.vigenciaHoras)} '
+        'en cada punto · ${resumen.totalPuntos} puntos',
+        style: Theme.of(context).textTheme.bodySmall
+            ?.copyWith(color: EcoColors.textoSecundario),
+      ),
+      const SizedBox(height: 16),
+      _Rejilla(
+        children: [
+          for (final nivel in NivelLlenado.values)
+            TarjetaMetrica(
+              key: Key('resumen-llenado-${nivel.valorApi}'),
+              etiqueta: nivel.etiqueta,
+              valor: resumen.cantidad(nivel),
+              estado: EstadoNodo.sinDatos,
+              visual: visualLlenado(context, nivel),
+            ),
+        ],
       ),
     ],
   );

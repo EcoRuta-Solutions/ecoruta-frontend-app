@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/config/app_config.dart';
 import '../../../core/network/api_client.dart';
 import 'modelos_puntos_criticos.dart';
+import 'repositorio_reportes_campo.dart';
 
 abstract interface class RepositorioPuntosCriticos {
   /// Todos los puntos críticos (recorre las páginas del backend).
@@ -130,7 +131,8 @@ class RepositorioPuntosCriticosMock implements RepositorioPuntosCriticos {
   @override
   Future<List<PuntoCritico>> listarTodos() async {
     await Future<void>.delayed(_latencia);
-    return puntos;
+    // El llenado sale de los reportes de ejemplo (cambia al reportar).
+    return [for (final punto in puntos) ReportesCampoEjemplo.conLlenado(punto)];
   }
 
   @override
@@ -142,6 +144,7 @@ class RepositorioPuntosCriticosMock implements RepositorioPuntosCriticos {
   @override
   Future<PuntoCritico?> obtener(String codigo) async {
     await Future<void>.delayed(_latencia);
-    return puntos.where((punto) => punto.codigo == codigo).firstOrNull;
+    final punto = puntos.where((punto) => punto.codigo == codigo).firstOrNull;
+    return punto == null ? null : ReportesCampoEjemplo.conLlenado(punto);
   }
 }
