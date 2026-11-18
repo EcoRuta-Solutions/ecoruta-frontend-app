@@ -196,14 +196,33 @@ class _DialogoGenerarRutasState extends State<DialogoGenerarRutas> {
           children: [
             Text('Turno', style: textos.labelLarge),
             const SizedBox(height: 8),
-            SegmentedButton<TurnoZona>(
-              segments: [
-                for (final turno in TurnoZona.values)
-                  ButtonSegment(value: turno, label: Text(turno.etiqueta)),
-              ],
-              selected: {_turno},
-              onSelectionChanged: (seleccion) =>
-                  setState(() => _turno = seleccion.single),
+            // Sin icono de check y con poco padding para que Mañana, Tarde y
+            // Noche quepan en una línea aunque el diálogo sea angosto.
+            SizedBox(
+              width: double.infinity,
+              child: SegmentedButton<TurnoZona>(
+                showSelectedIcon: false,
+                style: SegmentedButton.styleFrom(
+                  visualDensity: VisualDensity.compact,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                ),
+                segments: [
+                  for (final turno in TurnoZona.values)
+                    ButtonSegment(
+                      value: turno,
+                      label: Text(
+                        turno.etiqueta,
+                        maxLines: 1,
+                        softWrap: false,
+                        overflow: TextOverflow.visible,
+                      ),
+                    ),
+                ],
+                selected: {_turno},
+                onSelectionChanged: (seleccion) =>
+                    setState(() => _turno = seleccion.single),
+              ),
             ),
             const SizedBox(height: 8),
             SwitchListTile(

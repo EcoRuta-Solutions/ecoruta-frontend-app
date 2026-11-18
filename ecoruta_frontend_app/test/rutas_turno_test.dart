@@ -115,8 +115,12 @@ DioException _errorHttp(int codigo, Object? cuerpo) {
   );
 }
 
-Future<void> _mostrar(WidgetTester tester, _RepositorioFalso repositorio) async {
-  tester.view.physicalSize = const Size(900, 2400);
+Future<void> _mostrar(
+  WidgetTester tester,
+  _RepositorioFalso repositorio, {
+  Size pantalla = const Size(900, 2400),
+}) async {
+  tester.view.physicalSize = pantalla;
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
   await tester.pumpWidget(
@@ -370,6 +374,35 @@ void main() {
 
       expect(repositorio.solicitudes, isEmpty);
       expect(find.byType(ResumenGeneracionRutas), findsNothing);
+    });
+
+    testWidgets('el selector de turno cabe en una línea en un celular', (
+      tester,
+    ) async {
+      await _mostrar(
+        tester,
+        _RepositorioFalso(),
+        pantalla: const Size(360, 800),
+      );
+      await tester.tap(find.widgetWithText(FilledButton, 'Generar rutas'));
+      await tester.pumpAndSettle();
+
+      final selector = find.byType(SegmentedButton<TurnoZona>);
+      Rect rect(String texto) => tester.getRect(
+        find.descendant(of: selector, matching: find.text(texto)),
+      );
+      final manana = rect('Mañana');
+      final tarde = rect('Tarde');
+      final noche = rect('Noche');
+      final alto = manana.height;
+
+      // Misma altura (una línea), sin solaparse y dentro del selector.
+      expect(tarde.height, alto);
+      expect(noche.height, alto);
+      expect(manana.right, lessThanOrEqualTo(tarde.left));
+      expect(tarde.right, lessThanOrEqualTo(noche.left));
+      expect(noche.right, lessThanOrEqualTo(tester.getRect(selector).right));
+      expect(tester.takeException(), isNull);
     });
 
     testWidgets('409: sin camiones disponibles, con el detalle del backend', (
