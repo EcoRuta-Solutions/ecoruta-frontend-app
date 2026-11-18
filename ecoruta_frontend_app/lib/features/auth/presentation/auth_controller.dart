@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/network/api_client.dart';
+import '../../../core/sesion/datos_de_sesion.dart';
 import '../data/auth_repository.dart';
 
 enum AuthStatus { unknown, loggedOut, loggedIn }
@@ -72,6 +73,8 @@ class AuthController extends Notifier<AuthState> {
         );
         return;
       }
+      // Otra cuenta pudo usar la app antes sin reiniciarla.
+      limpiarDatosDeSesion(ref);
       state = AuthState(status: AuthStatus.loggedIn, user: user);
     } on DioException catch (e) {
       state = AuthState(status: AuthStatus.loggedOut, error: _mensaje(e));
@@ -85,6 +88,7 @@ class AuthController extends Notifier<AuthState> {
 
   Future<void> logout() async {
     await _repo.logout();
+    limpiarDatosDeSesion(ref);
     state = const AuthState(status: AuthStatus.loggedOut);
   }
 

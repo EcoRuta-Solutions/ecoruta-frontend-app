@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/config/mostrar_demo.dart';
 import '../../../core/theme/app_theme.dart';
 import 'pantalla_contenedores.dart';
 import 'pantalla_usuarios_flota.dart';
@@ -12,7 +13,16 @@ class PantallaMas extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final navegacion = ref.watch(navegacionMunicipalidadProvider);
-    final opcion = navegacion.opcionMas;
+    // "Contenedores" usa sensores simulados: solo con USE_MOCK o MOSTRAR_DEMO.
+    final mostrarDemo = ref.watch(mostrarDemoProvider);
+    final opciones = [
+      for (final opcion in OpcionMasMunicipalidad.values)
+        if (mostrarDemo || opcion != OpcionMasMunicipalidad.contenedores)
+          opcion,
+    ];
+    final opcion = opciones.contains(navegacion.opcionMas)
+        ? navegacion.opcionMas
+        : null;
     if (opcion != null) {
       final pantalla = switch (opcion) {
         OpcionMasMunicipalidad.contenedores => const PantallaContenedores(),
@@ -56,7 +66,7 @@ class PantallaMas extends ConsumerWidget {
                   ?.copyWith(color: EcoColors.primario),
             ),
             const SizedBox(height: 24),
-            for (final opcion in OpcionMasMunicipalidad.values)
+            for (final opcion in opciones)
               Padding(
                 padding: const EdgeInsets.only(bottom: 16),
                 child: Card(

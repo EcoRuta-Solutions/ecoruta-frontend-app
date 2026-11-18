@@ -5,6 +5,7 @@ import 'package:latlong2/latlong.dart';
 
 import 'dart:math' as math;
 
+import '../../../core/config/mostrar_demo.dart';
 import '../../../core/theme/app_theme.dart';
 import '../data/modelos_panel.dart';
 import 'mapa_puntos_criticos.dart';
@@ -54,6 +55,11 @@ class _PantallaMapaState extends ConsumerState<PantallaMapa> {
         setState(() => _capa = CapaMapa.contenedores);
       }
     });
+
+    // Sin la capa demo solo queda el mapa real de puntos críticos.
+    if (!ref.watch(mostrarDemoProvider)) {
+      return const MapaPuntosCriticos(margenSuperior: 0);
+    }
 
     return Stack(
       children: [
