@@ -35,6 +35,7 @@ class PuntoCritico {
     this.estadoLlenado = NivelLlenado.sinDatos,
     this.reporteVigente = false,
     this.ultimoReporte,
+    this.esPrototipo = false,
   });
 
   final int? id;
@@ -53,6 +54,10 @@ class PuntoCritico {
   /// Último reporte de campo, aunque ya no esté vigente.
   final UltimoReporteBreve? ultimoReporte;
 
+  /// Contenedor prototipo con sensor (solo llega con
+  /// `?incluir_prototipo=true`).
+  final bool esPrototipo;
+
   factory PuntoCritico.fromJson(Map<String, dynamic> j) => PuntoCritico(
     id: (j['id'] as num?)?.toInt(),
     codigo: (j['codigo'] ?? j['codigo_unico'] ?? '').toString(),
@@ -67,6 +72,7 @@ class PuntoCritico {
     ultimoReporte: j['ultimo_reporte'] is Map<String, dynamic>
         ? UltimoReporteBreve.fromJson(j['ultimo_reporte'] as Map<String, dynamic>)
         : null,
+    esPrototipo: (j['es_prototipo'] as bool?) ?? false,
   );
 
   PuntoCritico conLlenado({
@@ -85,6 +91,7 @@ class PuntoCritico {
     estadoLlenado: estadoLlenado,
     reporteVigente: reporteVigente,
     ultimoReporte: ultimoReporte,
+    esPrototipo: esPrototipo,
   );
 
   /// Coordenadas válidas para dibujarlo en el mapa.

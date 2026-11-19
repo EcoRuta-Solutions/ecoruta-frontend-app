@@ -54,14 +54,27 @@ class PanelSocket {
     );
   }
 
-  Stream<EventoPanel> eventos() {
+  /// Lecturas de los contenedores demo (los mensajes con `nodo_id` y
+  /// `fill_pct`). Los demás eventos del canal (`sensor_lectura`,
+  /// `alerta_nueva`, `alerta_resuelta`) se ignoran aquí.
+  Stream<EventoPanel> eventos() => mensajes()
+      .where((j) => j['nodo_id'] is num && j['fill_pct'] is num)
+      .map(EventoPanel.fromJson);
+
+  /// Todos los mensajes del canal como JSON. Los que no son un objeto JSON
+  /// se descartan.
+  Stream<Map<String, dynamic>> mensajes() {
     final canal = WebSocketChannel.connect(_url);
     _canal = canal;
-    return canal.stream.map(
-      (mensaje) => EventoPanel.fromJson(
-        jsonDecode(mensaje as String) as Map<String, dynamic>,
-      ),
-    );
+    return canal.stream.expand((mensaje) {
+      if (mensaje is! String) return const <Map<String, dynamic>>[];
+      try {
+        final datos = jsonDecode(mensaje);
+        return datos is Map<String, dynamic> ? [datos] : const [];
+      } on FormatException {
+        return const <Map<String, dynamic>>[];
+      }
+    });
   }
 
   Future<void> cerrar() async {

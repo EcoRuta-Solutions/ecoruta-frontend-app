@@ -180,7 +180,7 @@ void main() {
 
       expect(puntos, hasLength(151));
       expect(peticiones, [
-        {'limit': 200, 'offset': 0},
+        {'limit': 200, 'offset': 0, 'incluir_prototipo': true},
       ]);
     });
 

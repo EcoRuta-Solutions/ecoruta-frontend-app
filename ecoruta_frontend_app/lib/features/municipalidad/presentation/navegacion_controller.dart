@@ -13,11 +13,15 @@ class NavegacionMunicipalidad {
     this.destino = DestinoMunicipalidad.panel,
     this.opcionMas,
     this.focoNodoId,
+    this.focoPuntoCodigo,
   });
 
   final DestinoMunicipalidad destino;
   final OpcionMasMunicipalidad? opcionMas;
   final int? focoNodoId;
+
+  /// Punto crítico a centrar en el mapa (por ejemplo, desde una alerta).
+  final String? focoPuntoCodigo;
 }
 
 final navegacionMunicipalidadProvider =
@@ -39,6 +43,13 @@ class NavegacionMunicipalidadController
     state = NavegacionMunicipalidad(
       destino: DestinoMunicipalidad.mapa,
       focoNodoId: nodoId,
+    );
+  }
+
+  void verPuntoEnMapa(String codigo) {
+    state = NavegacionMunicipalidad(
+      destino: DestinoMunicipalidad.mapa,
+      focoPuntoCodigo: codigo,
     );
   }
 

@@ -1,8 +1,10 @@
 import 'package:ecoruta_frontend_app/core/theme/app_theme.dart';
 import 'package:ecoruta_frontend_app/features/municipalidad/data/modelos_puntos_criticos.dart';
+import 'package:ecoruta_frontend_app/features/municipalidad/data/modelos_reportes_campo.dart';
 import 'package:ecoruta_frontend_app/features/municipalidad/data/repositorio_puntos_criticos.dart';
 import 'package:ecoruta_frontend_app/features/municipalidad/presentation/mapa_puntos_criticos.dart';
 import 'package:ecoruta_frontend_app/features/municipalidad/presentation/pantalla_mapa.dart';
+import 'package:ecoruta_frontend_app/features/municipalidad/presentation/widgets/visual_llenado.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -110,6 +112,44 @@ void main() {
       );
       expect(codigos(FiltroPuntosCriticos.recuperados), 'R1,R2');
     });
+  });
+
+  testWidgets('el prototipo lleva su etiqueta y se pinta naranja si está lleno', (
+    tester,
+  ) async {
+    const lleno = PuntoCritico(
+      codigo: 'PROTO',
+      estado: EstadoPuntoCritico.potencial,
+      priorizacionObligatoria: false,
+      direccion: 'Dirección PROTO',
+      latitud: -8.11,
+      longitud: -79.03,
+      estadoLlenado: NivelLlenado.lleno,
+      esPrototipo: true,
+    );
+    await _mostrarMapa(
+      tester,
+      _RepositorioPuntosFalso([lleno, _punto('N1', longitud: -79.01)]),
+    );
+
+    expect(find.text(etiquetaPrototipo), findsOneWidget);
+    final marcador = find.byWidgetPredicate(
+      (w) => w is MarcadorPuntoCritico && w.punto.esPrototipo,
+    );
+    final circulo = tester.widget<Container>(
+      find
+          .descendant(of: marcador, matching: find.byType(Container))
+          .first,
+    );
+    final contexto = tester.element(marcador);
+    expect(
+      (circulo.decoration! as BoxDecoration).color,
+      visualLlenado(contexto, NivelLlenado.lleno).color,
+    );
+
+    await tester.tap(marcador);
+    await tester.pumpAndSettle();
+    expect(find.text('$etiquetaPrototipo PROTO'), findsOneWidget);
   });
 
   testWidgets('los chips filtran los marcadores y actualizan el conteo', (

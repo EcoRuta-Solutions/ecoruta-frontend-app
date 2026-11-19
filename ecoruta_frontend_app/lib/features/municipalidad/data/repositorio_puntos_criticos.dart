@@ -7,7 +7,8 @@ import 'modelos_puntos_criticos.dart';
 import 'repositorio_reportes_campo.dart';
 
 abstract interface class RepositorioPuntosCriticos {
-  /// Todos los puntos críticos (recorre las páginas del backend).
+  /// Todos los puntos críticos (recorre las páginas del backend), incluido
+  /// el contenedor prototipo con sensor.
   Future<List<PuntoCritico>> listarTodos();
   Future<ResumenPuntosCriticos> resumen();
   Future<PuntoCritico?> obtener(String codigo);
@@ -39,7 +40,11 @@ class RepositorioPuntosCriticosApi implements RepositorioPuntosCriticos {
     for (var pagina = 0; pagina < _maximoPaginas; pagina++) {
       final respuesta = await _dio.get(
         '/puntos-criticos',
-        queryParameters: {'limit': tamanoPagina, 'offset': offset},
+        queryParameters: {
+          'limit': tamanoPagina,
+          'offset': offset,
+          'incluir_prototipo': true,
+        },
       );
       final datos = PaginaPuntosCriticos.fromJson(
         respuesta.data as Map<String, dynamic>,
@@ -128,11 +133,27 @@ class RepositorioPuntosCriticosMock implements RepositorioPuntosCriticos {
     ),
   ];
 
+  /// Contenedor prototipo de ejemplo (con sensor). Va aparte de [puntos]
+  /// porque el backend solo lo envía con `?incluir_prototipo=true`.
+  static const prototipo = PuntoCritico(
+    id: 6,
+    codigo: 'EJEMPLO-PROTO',
+    estado: EstadoPuntoCritico.potencial,
+    priorizacionObligatoria: false,
+    direccion: 'Dirección de ejemplo del prototipo, Trujillo',
+    latitud: -8.1116,
+    longitud: -79.0288,
+    esPrototipo: true,
+  );
+
+  /// Lo que devuelve el mapa: [puntos] y el [prototipo].
+  static const todos = <PuntoCritico>[...puntos, prototipo];
+
   @override
   Future<List<PuntoCritico>> listarTodos() async {
     await Future<void>.delayed(_latencia);
     // El llenado sale de los reportes de ejemplo (cambia al reportar).
-    return [for (final punto in puntos) ReportesCampoEjemplo.conLlenado(punto)];
+    return [for (final punto in todos) ReportesCampoEjemplo.conLlenado(punto)];
   }
 
   @override
@@ -144,7 +165,7 @@ class RepositorioPuntosCriticosMock implements RepositorioPuntosCriticos {
   @override
   Future<PuntoCritico?> obtener(String codigo) async {
     await Future<void>.delayed(_latencia);
-    final punto = puntos.where((punto) => punto.codigo == codigo).firstOrNull;
+    final punto = todos.where((punto) => punto.codigo == codigo).firstOrNull;
     return punto == null ? null : ReportesCampoEjemplo.conLlenado(punto);
   }
 }

@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme/app_theme.dart';
 import '../auth/presentation/auth_controller.dart';
-import 'presentation/controladores_dominio.dart';
 import 'presentation/pantalla_alertas.dart';
 import 'presentation/pantalla_mapa.dart';
 import 'presentation/pantalla_mas.dart';
@@ -18,11 +17,6 @@ class PantallaInicioMunicipalidad extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final navegacion = ref.watch(navegacionMunicipalidadProvider);
-    final alertas =
-        ref.watch(alertasControllerProvider).asData?.value ?? const [];
-    final sinReconocer = alertas
-        .where((alerta) => alerta.activaSinReconocer)
-        .length;
     final destino = navegacion.destino;
     final informesSeleccionados =
         destino == DestinoMunicipalidad.mas &&
@@ -82,17 +76,11 @@ class PantallaInicioMunicipalidad extends ConsumerWidget {
             selectedIcon: const Icon(Icons.map_rounded),
             label: 'Mapa',
           ),
+          // Sin contador: las alertas reales se consultan solo mientras la
+          // pestaña está visible.
           NavigationDestination(
-            icon: Badge(
-              isLabelVisible: sinReconocer > 0,
-              label: Text('$sinReconocer'),
-              child: const Icon(Icons.notifications_none),
-            ),
-            selectedIcon: Badge(
-              isLabelVisible: sinReconocer > 0,
-              label: Text('$sinReconocer'),
-              child: const Icon(Icons.notifications_rounded),
-            ),
+            icon: const Icon(Icons.notifications_none),
+            selectedIcon: const Icon(Icons.notifications_rounded),
             label: 'Alertas',
           ),
           NavigationDestination(
