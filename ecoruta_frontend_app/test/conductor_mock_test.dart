@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:ecoruta_frontend_app/features/conductor/data/generar_mi_ruta.dart';
 import 'package:ecoruta_frontend_app/core/config/app_config.dart';
 import 'package:ecoruta_frontend_app/core/theme/app_theme.dart';
 import 'package:ecoruta_frontend_app/features/auth/data/auth_repository.dart';
@@ -459,6 +460,10 @@ Future<void> _mostrarPantalla(
 }
 
 class _RepositorioFallaPrimeraCarga implements RepositorioConductor {
+  @override
+  Future<ResultadoGenerarMiRuta> generarMiRuta() =>
+      throw UnimplementedError();
+
   final RepositorioConductorMock _repositorio = RepositorioConductorMock();
   bool _fallar = true;
 
@@ -560,6 +565,10 @@ Map<String, dynamic> _rutaJson({required String fecha}) => {
 
 /// Devuelve siempre las mismas rutas.
 class _RepositorioFijo implements RepositorioConductor {
+  @override
+  Future<ResultadoGenerarMiRuta> generarMiRuta() =>
+      throw UnimplementedError();
+
   _RepositorioFijo(this.rutas);
 
   final List<RutaConductor> rutas;

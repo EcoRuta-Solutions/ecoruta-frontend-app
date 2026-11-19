@@ -33,17 +33,48 @@ DateTime _fecha(Object? valor) => DateTime.parse(valor as String).toLocal();
 
 double? _decimal(Object? valor) => (valor as num?)?.toDouble();
 
+/// Quién hizo el reporte: una persona en campo o el sensor del contenedor.
+enum OrigenReporte {
+  campo('campo'),
+  sensor('sensor'),
+
+  /// Valor ausente o no reconocido.
+  desconocido('');
+
+  const OrigenReporte(this.valorApi);
+
+  final String valorApi;
+
+  /// Sin `origen` (backends anteriores) se asume campo, que era el único.
+  static OrigenReporte desdeApi(Object? valor) => switch (valor) {
+    null || 'campo' => campo,
+    'sensor' => sensor,
+    _ => desconocido,
+  };
+}
+
 /// `ultimo_reporte` dentro de cada punto crítico (`UltimoReporteBreve`).
 class UltimoReporteBreve {
-  const UltimoReporteBreve({required this.estado, required this.creadoEn});
+  const UltimoReporteBreve({
+    required this.estado,
+    required this.creadoEn,
+    this.origen = OrigenReporte.campo,
+    this.nivelPct,
+  });
 
   final NivelLlenado estado;
   final DateTime creadoEn;
+  final OrigenReporte origen;
+
+  /// Porcentaje de llenado medido; null si no se conoce.
+  final double? nivelPct;
 
   factory UltimoReporteBreve.fromJson(Map<String, dynamic> j) =>
       UltimoReporteBreve(
         estado: NivelLlenado.desdeApi(j['estado']),
         creadoEn: _fecha(j['creado_en']),
+        origen: OrigenReporte.desdeApi(j['origen']),
+        nivelPct: _decimal(j['nivel_pct']),
       );
 }
 
@@ -88,6 +119,8 @@ class ReporteCampo {
     required this.usuarioNombre,
     required this.estado,
     required this.creadoEn,
+    this.origen = OrigenReporte.campo,
+    this.nivelPct,
     this.observacion,
     this.lat,
     this.lon,
@@ -100,9 +133,16 @@ class ReporteCampo {
   final int id;
   final int puntoCriticoId;
   final String codigoPunto;
-  final int usuarioId;
+  /// Null si el reporte lo hizo el sensor.
+  final int? usuarioId;
+
+  /// Vacío si el reporte lo hizo el sensor.
   final String usuarioNombre;
   final NivelLlenado estado;
+  final OrigenReporte origen;
+
+  /// Porcentaje de llenado medido; null si no se conoce.
+  final double? nivelPct;
   final String? observacion;
   final double? lat;
   final double? lon;
@@ -122,9 +162,11 @@ class ReporteCampo {
     id: (j['id'] as num).toInt(),
     puntoCriticoId: (j['punto_critico_id'] as num).toInt(),
     codigoPunto: j['codigo_punto'] as String,
-    usuarioId: (j['usuario_id'] as num).toInt(),
+    usuarioId: (j['usuario_id'] as num?)?.toInt(),
     usuarioNombre: (j['usuario_nombre'] as String?) ?? '',
     estado: NivelLlenado.desdeApi(j['estado']),
+    origen: OrigenReporte.desdeApi(j['origen']),
+    nivelPct: _decimal(j['nivel_pct']),
     observacion: j['observacion'] as String?,
     lat: _decimal(j['lat']),
     lon: _decimal(j['lon']),

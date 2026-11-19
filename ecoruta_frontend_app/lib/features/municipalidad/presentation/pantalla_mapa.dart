@@ -54,18 +54,31 @@ class _PantallaMapaState extends ConsumerState<PantallaMapa> {
           siguiente.focoNodoId != anterior?.focoNodoId) {
         setState(() => _capa = CapaMapa.contenedores);
       }
+      if (siguiente.focoPuntoCodigo != null &&
+          siguiente.focoPuntoCodigo != anterior?.focoPuntoCodigo) {
+        setState(() => _capa = CapaMapa.puntosCriticos);
+      }
     });
+
+    final codigoEnFoco = ref.watch(
+      navegacionMunicipalidadProvider.select((n) => n.focoPuntoCodigo),
+    );
 
     // Sin la capa demo solo queda el mapa real de puntos críticos.
     if (!ref.watch(mostrarDemoProvider)) {
-      return const MapaPuntosCriticos(margenSuperior: 0);
+      return MapaPuntosCriticos(
+        margenSuperior: 0,
+        codigoEnFoco: codigoEnFoco,
+      );
     }
 
     return Stack(
       children: [
         Positioned.fill(
           child: switch (_capa) {
-            CapaMapa.puntosCriticos => const MapaPuntosCriticos(),
+            CapaMapa.puntosCriticos => MapaPuntosCriticos(
+              codigoEnFoco: codigoEnFoco,
+            ),
             CapaMapa.contenedores => const _CapaContenedores(),
           },
         ),

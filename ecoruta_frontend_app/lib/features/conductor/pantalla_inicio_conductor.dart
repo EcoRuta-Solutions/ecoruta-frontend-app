@@ -5,6 +5,7 @@ import '../../core/config/app_config.dart';
 import '../../core/theme/app_theme.dart';
 import '../auth/presentation/auth_controller.dart';
 import 'presentation/accesibilidad_conductor.dart';
+import 'presentation/banner_contenedor_lleno.dart';
 import 'presentation/navegacion_conductor_controller.dart';
 import 'presentation/pantalla_mapa_conductor.dart';
 import 'presentation/pantalla_mas_conductor.dart';
@@ -47,6 +48,7 @@ class PantallaInicioConductor extends ConsumerWidget {
       body: Column(
         children: [
           if (AppConfig.usarDatosDeEjemplo) const _AvisoDatosEjemplo(),
+          const BannerContenedorLleno(),
           Expanded(
             child: AnimatedSwitcher(
               duration: const Duration(milliseconds: 220),

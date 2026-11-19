@@ -20,11 +20,16 @@ import 'widgets/visual_llenado.dart';
 class MapaPuntosCriticos extends ConsumerWidget {
   const MapaPuntosCriticos({
     this.margenSuperior = PantallaMapa.margenSelector,
+    this.codigoEnFoco,
     super.key,
   });
 
   /// Espacio reservado arriba (el selector de capa del mapa municipal).
   final double margenSuperior;
+
+  /// Punto a centrar y abrir al mostrar el mapa (por ejemplo, el de una
+  /// alerta). Si no está en la lista o no tiene coordenadas, se ignora.
+  final String? codigoEnFoco;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -47,8 +52,11 @@ class MapaPuntosCriticos extends ConsumerWidget {
       ),
       error: (error, stackTrace) =>
           ErrorPanel(onRetry: () => ref.invalidate(puntosCriticosProvider)),
-      data: (lista) =>
-          _MapaPuntosCargado(puntos: lista, margenSuperior: margenSuperior),
+      data: (lista) => _MapaPuntosCargado(
+        puntos: lista,
+        margenSuperior: margenSuperior,
+        codigoEnFoco: codigoEnFoco,
+      ),
     );
   }
 }
@@ -57,10 +65,12 @@ class _MapaPuntosCargado extends StatefulWidget {
   const _MapaPuntosCargado({
     required this.puntos,
     required this.margenSuperior,
+    required this.codigoEnFoco,
   });
 
   final List<PuntoCritico> puntos;
   final double margenSuperior;
+  final String? codigoEnFoco;
 
   @override
   State<_MapaPuntosCargado> createState() => _MapaPuntosCargadoState();
@@ -72,6 +82,42 @@ class _MapaPuntosCargadoState extends State<_MapaPuntosCargado> {
   bool _errorTeselas = false;
 
   static const _margenCamara = EdgeInsets.fromLTRB(40, 160, 40, 150);
+  static const _zoomFoco = 17.0;
+
+  /// Punto en foco al abrir el mapa; la cámara arranca centrada en él.
+  PuntoCritico? _focoInicial;
+
+  @override
+  void initState() {
+    super.initState();
+    _focoInicial = _buscarFoco(widget.codigoEnFoco);
+    final foco = _focoInicial;
+    if (foco != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _mostrarDetalle(context, foco);
+      });
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant _MapaPuntosCargado anterior) {
+    super.didUpdateWidget(anterior);
+    if (widget.codigoEnFoco == anterior.codigoEnFoco) return;
+    final foco = _buscarFoco(widget.codigoEnFoco);
+    if (foco == null) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      setState(() => _filtro = FiltroPuntosCriticos.todos);
+      _controladorMapa.move(_punto(foco), _zoomFoco);
+      _mostrarDetalle(context, foco);
+    });
+  }
+
+  PuntoCritico? _buscarFoco(String? codigo) => codigo == null
+      ? null
+      : widget.puntos
+            .where((punto) => punto.codigo == codigo && punto.tieneCoordenadas)
+            .firstOrNull;
 
   List<PuntoCritico> get _visibles {
     final lista = filtrarPuntosCriticos(
@@ -107,9 +153,11 @@ class _MapaPuntosCargadoState extends State<_MapaPuntosCargado> {
         FlutterMap(
           mapController: _controladorMapa,
           options: MapOptions(
-            initialCenter: PantallaMapa.centro,
-            initialZoom: 13,
-            initialCameraFit: _encuadre(visibles),
+            initialCenter: _focoInicial == null
+                ? PantallaMapa.centro
+                : _punto(_focoInicial!),
+            initialZoom: _focoInicial == null ? 13 : _zoomFoco,
+            initialCameraFit: _focoInicial == null ? _encuadre(visibles) : null,
             interactionOptions: const InteractionOptions(
               flags: InteractiveFlag.all,
             ),
@@ -130,8 +178,11 @@ class _MapaPuntosCargadoState extends State<_MapaPuntosCargado> {
                 for (final punto in visibles)
                   Marker(
                     point: _punto(punto),
-                    width: 44,
-                    height: 44,
+                    // El prototipo lleva su etiqueta debajo del círculo.
+                    width: punto.esPrototipo ? 160 : 44,
+                    height: punto.esPrototipo
+                        ? MarcadorPuntoCritico.altoConEtiqueta
+                        : 44,
                     child: MarcadorPuntoCritico(
                       punto: punto,
                       onTap: () => _mostrarDetalle(context, punto),
@@ -298,19 +349,27 @@ class MarcadorPuntoCritico extends StatelessWidget {
   final PuntoCritico punto;
   final VoidCallback onTap;
 
+  /// Alto del marcador del prototipo: el círculo queda en el centro (sobre
+  /// la coordenada) y la etiqueta debajo.
+  static const altoConEtiqueta = 104.0;
+
   @override
   Widget build(BuildContext context) {
     // El color es el del último reporte vigente; sin datos va en gris.
+    // El prototipo sigue la misma regla (naranja cuando está lleno).
     final visual = visualLlenado(context, punto.estadoLlenado);
-
-    return Semantics(
+    final circulo = Semantics(
       button: true,
-      label:
-          'Punto crítico ${punto.codigo}, '
-          '${nombreCategoriaPunto(punto.categoria)}, '
-          'llenado: ${punto.estadoLlenado.etiqueta}',
+      label: punto.esPrototipo
+          ? '$etiquetaPrototipo ${punto.codigo}, '
+                'llenado: ${punto.estadoLlenado.etiqueta}'
+          : 'Punto crítico ${punto.codigo}, '
+                '${nombreCategoriaPunto(punto.categoria)}, '
+                'llenado: ${punto.estadoLlenado.etiqueta}',
       child: Tooltip(
-        message: '${punto.codigo} · ${punto.direccion}',
+        message: punto.esPrototipo
+            ? '$etiquetaPrototipo · ${punto.codigo} · ${punto.direccion}'
+            : '${punto.codigo} · ${punto.direccion}',
         child: Material(
           color: Colors.transparent,
           child: InkWell(
@@ -339,8 +398,40 @@ class MarcadorPuntoCritico extends StatelessWidget {
         ),
       ),
     );
+    if (!punto.esPrototipo) return circulo;
+
+    return Stack(
+      alignment: Alignment.center,
+      clipBehavior: Clip.none,
+      children: [
+        SizedBox.square(dimension: 44, child: circulo),
+        Positioned(
+          top: altoConEtiqueta / 2 + 20,
+          child: ExcludeSemantics(
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              decoration: BoxDecoration(
+                color: EcoColors.superficie,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: visual.color),
+              ),
+              child: Text(
+                etiquetaPrototipo,
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  color: EcoColors.primario,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
   }
 }
+
+/// Cómo se rotula el contenedor con sensor en el mapa y su detalle.
+const etiquetaPrototipo = 'Contenedor prototipo';
 
 class _FiltrosPuntos extends StatelessWidget {
   const _FiltrosPuntos({
@@ -517,7 +608,9 @@ class DetallePuntoCritico extends StatelessWidget {
                   children: [
                     Expanded(
                       child: Text(
-                        'Punto crítico ${punto.codigo}',
+                        punto.esPrototipo
+                            ? '$etiquetaPrototipo ${punto.codigo}'
+                            : 'Punto crítico ${punto.codigo}',
                         style: textos.titleLarge?.copyWith(
                           color: EcoColors.primario,
                         ),
@@ -531,6 +624,11 @@ class DetallePuntoCritico extends StatelessWidget {
                   spacing: 8,
                   runSpacing: 8,
                   children: [
+                    if (punto.esPrototipo)
+                      _Etiqueta(
+                        texto: etiquetaPrototipo,
+                        visual: colores.sinDatos,
+                      ),
                     _Etiqueta(
                       texto: _nombreEstado(punto.estado),
                       visual: estadoVisual,
@@ -660,6 +758,8 @@ class SeccionLlenadoPunto extends ConsumerWidget {
     final vigente = ultimo?.reporteVigente ?? punto.reporteVigente;
     final reporte = ultimo?.reporte;
     final fecha = reporte?.creadoEn ?? punto.ultimoReporte?.creadoEn;
+    final origen = reporte?.origen ?? punto.ultimoReporte?.origen;
+    final nivelPct = reporte?.nivelPct ?? punto.ultimoReporte?.nivelPct;
     final vigencia = ultimo?.vigenciaHoras;
     final observacion = reporte?.observacion;
 
@@ -701,7 +801,14 @@ class SeccionLlenadoPunto extends ConsumerWidget {
                   : 'Ya no está vigente (más de ${horasVigencia(vigencia)}).',
               style: secundario,
             ),
-          if (reporte != null && reporte.usuarioNombre.isNotEmpty)
+          if (origen == OrigenReporte.sensor)
+            Text(
+              nivelPct == null
+                  ? 'Medido por el sensor'
+                  : 'Medido por el sensor: ${nivelPct.round()}%',
+              style: secundario,
+            )
+          else if (reporte != null && reporte.usuarioNombre.isNotEmpty)
             Text('Reportado por ${reporte.usuarioNombre}', style: secundario),
           if (vigente && observacion != null)
             Text('Observación: $observacion', style: secundario),

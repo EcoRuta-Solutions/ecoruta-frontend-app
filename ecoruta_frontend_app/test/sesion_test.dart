@@ -1,3 +1,4 @@
+import 'package:ecoruta_frontend_app/features/conductor/data/generar_mi_ruta.dart';
 import 'package:ecoruta_frontend_app/core/network/api_client.dart';
 import 'package:ecoruta_frontend_app/core/storage/token_storage.dart';
 import 'package:ecoruta_frontend_app/core/theme/app_theme.dart';
@@ -79,6 +80,10 @@ class _AuthRepositoryFalso implements AuthRepository {
 }
 
 class _RepositorioConductorFalso implements RepositorioConductor {
+  @override
+  Future<ResultadoGenerarMiRuta> generarMiRuta() =>
+      throw UnimplementedError();
+
   _RepositorioConductorFalso(this.backend);
 
   final _Backend backend;

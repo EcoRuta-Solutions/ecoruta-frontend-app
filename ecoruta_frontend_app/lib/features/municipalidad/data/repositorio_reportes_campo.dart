@@ -68,7 +68,7 @@ class RepositorioReportesCampoMock implements RepositorioReportesCampo {
   @override
   Future<ReporteCampo> crear(NuevoReporteCampo reporte) async {
     await Future<void>.delayed(_latencia);
-    final punto = RepositorioPuntosCriticosMock.puntos
+    final punto = RepositorioPuntosCriticosMock.todos
         .where((punto) => punto.codigo == reporte.codigoPunto)
         .firstOrNull;
     if (punto == null) {
@@ -124,7 +124,8 @@ class ReportesCampoEjemplo {
   static List<ReporteCampo> get _lista => _reportes ??= _iniciales();
 
   /// Un reporte vigente de cada nivel y uno vencido (que se ve como
-  /// "Sin datos"). El resto de puntos no tiene reportes.
+  /// "Sin datos"), más una lectura del sensor del prototipo que lo marca
+  /// lleno. El resto de puntos no tiene reportes.
   static List<ReporteCampo> _iniciales() {
     final ahora = DateTime.now();
     ReporteCampo ejemplo(int id, int punto, NivelLlenado estado, int horas) =>
@@ -143,6 +144,17 @@ class ReportesCampoEjemplo {
       ejemplo(1, 1, NivelLlenado.desbordado, 2),
       ejemplo(2, 2, NivelLlenado.lleno, 5),
       ejemplo(3, 3, NivelLlenado.vacio, 30),
+      ReporteCampo(
+        id: 4,
+        puntoCriticoId: RepositorioPuntosCriticosMock.prototipo.id!,
+        codigoPunto: RepositorioPuntosCriticosMock.prototipo.codigo,
+        usuarioId: null,
+        usuarioNombre: '',
+        estado: NivelLlenado.lleno,
+        origen: OrigenReporte.sensor,
+        nivelPct: 92,
+        creadoEn: ahora.subtract(const Duration(minutes: 10)),
+      ),
     ];
   }
 
@@ -208,6 +220,8 @@ class ReportesCampoEjemplo {
           : UltimoReporteBreve(
               estado: reporte.estado,
               creadoEn: reporte.creadoEn,
+              origen: reporte.origen,
+              nivelPct: reporte.nivelPct,
             ),
     );
   }

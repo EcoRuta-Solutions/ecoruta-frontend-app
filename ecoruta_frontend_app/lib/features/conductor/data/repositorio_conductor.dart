@@ -3,8 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/config/app_config.dart';
 import '../../../core/network/api_client.dart';
+import '../../municipalidad/data/modelos_reportes_campo.dart';
 import '../../municipalidad/data/repositorio_puntos_criticos.dart';
 import '../../municipalidad/data/repositorio_reportes_campo.dart';
+import 'generar_mi_ruta.dart';
 import 'modelos_conductor.dart';
 
 final repositorioConductorProvider = Provider<RepositorioConductor>(
@@ -26,6 +28,10 @@ abstract interface class RepositorioConductor {
     int paradaId,
     bool recolectado,
   );
+
+  /// POST /rutas/generar-mia. Lanza [ErrorGenerarMiRuta] (409: ya tiene
+  /// una ruta en proceso hoy o no tiene camión; 422: no hay puntos llenos).
+  Future<ResultadoGenerarMiRuta> generarMiRuta();
 }
 
 class RepositorioConductorApi implements RepositorioConductor {
@@ -70,6 +76,18 @@ class RepositorioConductorApi implements RepositorioConductor {
       data: {'recolectado': recolectado},
     );
     return ParadaConductor.fromJson(respuesta.data as Map<String, dynamic>);
+  }
+
+  @override
+  Future<ResultadoGenerarMiRuta> generarMiRuta() async {
+    try {
+      final respuesta = await _dio.post('/rutas/generar-mia');
+      return ResultadoGenerarMiRuta.fromJson(
+        respuesta.data as Map<String, dynamic>,
+      );
+    } on DioException catch (error) {
+      throw errorGenerarMiRutaDesde(error);
+    }
   }
 }
 
@@ -117,6 +135,53 @@ class RepositorioConductorMock implements RepositorioConductor {
     return actualizada;
   }
 
+  /// Como el backend: 409 si hoy ya hay una ruta en proceso, 422 si no hay
+  /// puntos llenos (según los reportes de ejemplo). Reemplaza las rutas
+  /// pendientes de hoy por una nueva con los puntos llenos.
+  @override
+  Future<ResultadoGenerarMiRuta> generarMiRuta() async {
+    final ahora = DateTime.now();
+    final deHoy = _rutas.where((ruta) => ruta.esDelDia(ahora)).toList();
+    if (deHoy.any((ruta) => ruta.estado == EstadoRutaConductor.enProceso)) {
+      throw const ErrorGenerarMiRuta(mensajeYaTieneRuta, codigo: 409);
+    }
+    final llenos = [
+      for (final punto in RepositorioPuntosCriticosMock.todos)
+        if (const {
+          NivelLlenado.lleno,
+          NivelLlenado.desbordado,
+        }.contains(ReportesCampoEjemplo.ultimoDe(punto.codigo).estadoLlenado))
+          punto.codigo,
+    ];
+    if (llenos.isEmpty) {
+      throw const ErrorGenerarMiRuta(mensajeSinPuntosLlenos, codigo: 422);
+    }
+    final pendientes = deHoy
+        .where((ruta) => ruta.estado == EstadoRutaConductor.pendiente)
+        .map((ruta) => ruta.id)
+        .toSet();
+    _rutas.removeWhere((ruta) => pendientes.contains(ruta.id));
+    final id =
+        _rutas.fold(100, (maximo, ruta) => ruta.id > maximo ? ruta.id : maximo) +
+        1;
+    _rutas.insert(
+      0,
+      _rutaEjemplo(
+        id: id,
+        dia: DateTime(ahora.year, ahora.month, ahora.day),
+        camion: _camionEjemplo,
+        estado: EstadoRutaConductor.pendiente,
+        codigos: llenos,
+      ),
+    );
+    return ResultadoGenerarMiRuta(
+      nroPuntos: llenos.length,
+      metodoDistancia: 'ejemplo',
+      rutasReemplazadas: pendientes.length,
+      rutaId: id,
+    );
+  }
+
   RutaConductor _rutaPorId(int id) => _rutas.firstWhere(
     (ruta) => ruta.id == id,
     orElse: () => throw StateError('No existe la ruta solicitada.'),
@@ -131,8 +196,14 @@ class RepositorioConductorMock implements RepositorioConductor {
 /// Dos rutas de ejemplo: una pendiente para [hoy] y una completada del día
 /// anterior. Las paradas son los puntos "EJEMPLO-0X"; el llenado sale de
 /// los reportes de ejemplo (o "Sin datos").
+const _camionEjemplo = CamionConductor(
+  id: 1,
+  placa: 'EJEMPLO-1',
+  turno: 'manana',
+);
+
 List<RutaConductor> crearRutasEjemplo(DateTime hoy) {
-  const camion = CamionConductor(id: 1, placa: 'EJEMPLO-1', turno: 'manana');
+  const camion = _camionEjemplo;
   final dia = DateTime(hoy.year, hoy.month, hoy.day);
   final ayer = dia.subtract(const Duration(days: 1));
   return [
@@ -163,7 +234,7 @@ RutaConductor _rutaEjemplo({
   int recolectadas = 0,
 }) {
   final puntos = {
-    for (final punto in RepositorioPuntosCriticosMock.puntos)
+    for (final punto in RepositorioPuntosCriticosMock.todos)
       punto.codigo: punto,
   };
   return RutaConductor(

@@ -4,12 +4,14 @@ import 'package:flutter_riverpod/misc.dart';
 import '../../features/conductor/data/repositorio_conductor.dart';
 import '../../features/conductor/presentation/mis_rutas_controller.dart';
 import '../../features/conductor/presentation/navegacion_conductor_controller.dart';
+import '../../features/municipalidad/data/repositorio_alertas_activas.dart';
 import '../../features/municipalidad/data/repositorio_puntos_criticos.dart';
 import '../../features/municipalidad/data/repositorio_reportes_campo.dart';
 import '../../features/municipalidad/data/repositorio_resumen_flota.dart';
 import '../../features/municipalidad/data/repositorio_rutas_turno.dart';
 import '../../features/municipalidad/data/repositorio_zonas_ruta.dart';
 import '../../features/municipalidad/data/repositorios_mock.dart';
+import '../../features/municipalidad/presentation/alertas_activas_providers.dart';
 import '../../features/municipalidad/presentation/controladores_dominio.dart';
 import '../../features/municipalidad/presentation/navegacion_controller.dart';
 import '../../features/municipalidad/presentation/panel_controller.dart';
@@ -33,6 +35,7 @@ final List<ProviderOrFamily> providersDeSesion = [
   repositorioPanelProvider,
   repositorioContenedoresProvider,
   repositorioAlertasProvider,
+  repositorioAlertasActivasProvider,
   repositorioFlotaProvider,
   repositorioInformesProvider,
   repositorioPuntosCriticosProvider,
@@ -45,6 +48,7 @@ final List<ProviderOrFamily> providersDeSesion = [
   contenedoresControllerProvider,
   detalleNodoProvider,
   alertasControllerProvider,
+  alertasActivasProvider,
   flotaControllerProvider,
   informesControllerProvider,
   navegacionMunicipalidadProvider,
